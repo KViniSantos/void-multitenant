@@ -23,7 +23,7 @@ test("tenant asset validation accepts only this tenant's gallery path", () => {
 
 test("removed gallery assets exclude retained URLs and never include other folders", () => {
   assert.deepEqual(
-    getRemovedGalleryPaths([asset("11111111-1111-4111-8111-111111111111"), asset("22222222-2222-4222-8222-222222222222")], [asset("22222222-2222-4222-8222-222222222222")], tenantId, origin),
+    getRemovedGalleryPaths([asset("11111111-1111-4111-8111-111111111111"), asset("11111111-1111-4111-8111-111111111111"), asset("22222222-2222-4222-8222-222222222222")], [asset("22222222-2222-4222-8222-222222222222")], tenantId, origin),
     [`${tenantId}/gallery/11111111-1111-4111-8111-111111111111.webp`],
   );
   assert.deepEqual(getRemovedGalleryPaths([asset("44444444-4444-4444-8444-444444444444", "about")], [], tenantId, origin), []);
