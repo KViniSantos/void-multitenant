@@ -86,11 +86,22 @@ export function SettingsForm({ tenant }: { tenant: Tenant }) {
   const updateNavigation = (patch: Partial<StorefrontConfig["navigation"]>) => setConfig((current) => ({ ...current, navigation: { ...current.navigation, ...patch } }));
   const updateSection = <K extends keyof StorefrontConfig["sections"]>(key: K, patch: Partial<StorefrontConfig["sections"][K]>) => setConfig((current) => ({ ...current, sections: { ...current.sections, [key]: { ...current.sections[key], ...patch } } }));
   const updateFooter = (patch: Partial<StorefrontConfig["footer"]>) => setConfig((current) => ({ ...current, footer: { ...current.footer, ...patch } }));
+  const visibleSectionOrder = config.section_order.filter((key) => tenant.tenant_type === "services" || key !== "gallery");
   const moveSection = (key: StorefrontConfig["section_order"][number], delta: number) => setConfig((current) => {
     const order = [...current.section_order];
-    const from = order.indexOf(key);
-    const to = Math.max(0, Math.min(order.length - 1, from + delta));
-    [order[from], order[to]] = [order[to], order[from]];
+    const visibleOrder = order.filter((item) => tenant.tenant_type === "services" || item !== "gallery");
+    const from = visibleOrder.indexOf(key);
+    if (from < 0) return current;
+    const to = Math.max(0, Math.min(visibleOrder.length - 1, from + delta));
+    [visibleOrder[from], visibleOrder[to]] = [visibleOrder[to], visibleOrder[from]];
+    if (tenant.tenant_type !== "services") {
+      let visibleIndex = 0;
+      for (let index = 0; index < order.length; index += 1) {
+        if (order[index] !== "gallery") order[index] = visibleOrder[visibleIndex++];
+      }
+    } else {
+      order.splice(0, order.length, ...visibleOrder);
+    }
     return { ...current, section_order: order };
   });
   return <form action={action} className="panel editor-form settings-form-v2" encType="multipart/form-data">
@@ -115,9 +126,9 @@ export function SettingsForm({ tenant }: { tenant: Tenant }) {
 
     <div className="form-section-heading section-separator"><span className="step-number">04</span><div><strong>Seções e filtros da vitrine</strong><p>Escolha o que aparece e em que ordem. Os filtros rápidos usam as categorias e a disponibilidade dos produtos.</p></div></div>
     <div className="settings-navigation-options"><label className="switch-field"><input type="checkbox" checked={config.navigation.show_home_link} onChange={(event) => updateNavigation({ show_home_link: event.target.checked })} /><span className="switch-indicator" /><span><strong>Link Início</strong></span></label><label className="switch-field"><input type="checkbox" checked={config.navigation.show_category_links} onChange={(event) => updateNavigation({ show_category_links: event.target.checked })} /><span className="switch-indicator" /><span><strong>Link Categorias na navegação</strong></span></label><label className="switch-field"><input type="checkbox" checked={config.navigation.show_category_filters} onChange={(event) => updateNavigation({ show_category_filters: event.target.checked })} /><span className="switch-indicator" /><span><strong>Filtro rápido por categoria</strong></span></label><label className="switch-field"><input type="checkbox" checked={config.navigation.show_featured_link} onChange={(event) => updateNavigation({ show_featured_link: event.target.checked })} /><span className="switch-indicator" /><span><strong>Link Produtos em destaque</strong></span></label><label className="switch-field"><input type="checkbox" checked={config.navigation.show_about_link} onChange={(event) => updateNavigation({ show_about_link: event.target.checked })} /><span className="switch-indicator" /><span><strong>Link Sobre</strong></span></label><label className="switch-field"><input type="checkbox" checked={config.navigation.show_contact_link} onChange={(event) => updateNavigation({ show_contact_link: event.target.checked })} /><span className="switch-indicator" /><span><strong>Link Contato</strong></span></label><label className="switch-field"><input type="checkbox" checked={config.navigation.show_whatsapp_cta} onChange={(event) => updateNavigation({ show_whatsapp_cta: event.target.checked })} /><span className="switch-indicator" /><span><strong>Botão de atendimento</strong></span></label></div>
-    <div className="settings-section-list">{config.section_order.map((key, index) => {
+    <div className="settings-section-list">{visibleSectionOrder.map((key, index) => {
       const section = config.sections[key];
-      return <div className="settings-section-row" key={key}><span className="settings-order">{String(index + 1).padStart(2, "0")}</span><div className="settings-section-main"><strong>{sectionNames[key]}</strong><label className="settings-section-title"><span>Título</span><input value={section.title} maxLength={80} onChange={(event) => updateSection(key, { title: event.target.value } as never)} /></label></div><label className="settings-visible"><input type="checkbox" checked={section.enabled} onChange={(event) => updateSection(key, { enabled: event.target.checked } as never)} /> Exibir</label><div className="settings-order-actions"><button type="button" disabled={index === 0} onClick={() => moveSection(key, -1)} aria-label={`Mover ${sectionNames[key]} para cima`}>↑</button><button type="button" disabled={index === config.section_order.length - 1} onClick={() => moveSection(key, 1)} aria-label={`Mover ${sectionNames[key]} para baixo`}>↓</button></div></div>;
+      return <div className="settings-section-row" key={key}><span className="settings-order">{String(index + 1).padStart(2, "0")}</span><div className="settings-section-main"><strong>{sectionNames[key]}</strong><label className="settings-section-title"><span>Título</span><input value={section.title} maxLength={80} onChange={(event) => updateSection(key, { title: event.target.value } as never)} /></label></div><label className="settings-visible"><input type="checkbox" checked={section.enabled} onChange={(event) => updateSection(key, { enabled: event.target.checked } as never)} /> Exibir</label><div className="settings-order-actions"><button type="button" disabled={index === 0} onClick={() => moveSection(key, -1)} aria-label={`Mover ${sectionNames[key]} para cima`}>↑</button><button type="button" disabled={index === visibleSectionOrder.length - 1} onClick={() => moveSection(key, 1)} aria-label={`Mover ${sectionNames[key]} para baixo`}>↓</button></div></div>;
     })}</div>
     <div className="form-row"><label className="field"><span>Produtos por linha</span><select value={config.sections.catalog.columns} onChange={(event) => updateSection("catalog", { columns: Number(event.target.value) as 2 | 3 | 4 | 5 })}><option value={2}>2 produtos</option><option value={3}>3 produtos</option><option value={4}>4 produtos</option><option value={5}>5 produtos</option></select></label><label className="field"><span>Layout dos destaques</span><select value={config.sections.featured.layout} onChange={(event) => updateSection("featured", { layout: event.target.value as "cards" | "banners" })}><option value="cards">Cards de produto</option><option value="banners">Mini banners</option></select></label></div>
     <label className="field"><span>Texto da seção “Sobre a loja”</span><textarea rows={4} maxLength={3000} value={config.sections.about.text} onChange={(event) => updateSection("about", { text: event.target.value })} placeholder="Conte um pouco sobre a empresa e os produtos…" /></label>
