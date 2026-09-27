@@ -32,7 +32,7 @@ const storefrontConfigSchema = z.object({
 
 const storefrontProductSchema = z.object({
   id: z.string().uuid(), category_id: z.string().uuid().nullable(), category_name: z.string().nullable(),
-  name: z.string(), slug: z.string(), description: z.string(), price: z.number(), image_url: z.string().nullable(),
+  name: z.string(), slug: z.string(), description: z.string(), price: z.number(), card_price: z.number(), image_url: z.string().nullable(),
   image_urls: z.array(z.string()), availability: z.enum(["in_stock", "preorder", "sold_out"]),
   product_condition: z.enum(["new", "used", "refurbished"]), stock_quantity: z.number().int().nullable(),
   featured: z.boolean(), highlights: z.array(z.string()),
@@ -60,6 +60,7 @@ const productDetailSchema = z.object({
       items: z.array(z.object({ label: z.string(), value: z.string() })),
     })),
   }),
+  related_products: z.array(storefrontProductSchema),
 });
 
 export type StorefrontQuery = { page?: number; categoryId?: string | null; availability?: string | null };

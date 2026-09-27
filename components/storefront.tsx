@@ -2,9 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import type { PublicStorefront, StorefrontConfig, StorefrontProduct, StorefrontTemplate } from "@/lib/database.types";
-import { formatCurrency } from "@/lib/format";
 import { productHref } from "@/lib/storefront-data";
 import { CartAddButton, StoreCart } from "@/components/store-cart";
+import { ProductPrices } from "@/components/product-prices";
 import { HeroCarousel } from "@/components/storefront-carousel";
 import { StorefrontHeader } from "@/components/storefront-header";
 import { SocialIcon, WhatsAppMark } from "@/components/storefront-icons";
@@ -33,7 +33,7 @@ function catalogHref(basePath: string, filters: FilterState) {
   return `${basePath}${qs(filters)}#catalogo`;
 }
 
-function ProductCard({ store, product, template, basePath }: { store: PublicStorefront; product: StorefrontProduct; template: StorefrontTemplate; basePath: string }) {
+export function ProductCard({ store, product, template, basePath }: { store: Pick<PublicStorefront, "name" | "slug" | "domain">; product: StorefrontProduct; template: StorefrontTemplate; basePath: string }) {
   const href = productHref(store, product, basePath);
   return <article className="sf-product-card">
     <Link className="sf-product-image" href={href} aria-label={`Ver detalhes de ${product.name}`}>
@@ -47,7 +47,7 @@ function ProductCard({ store, product, template, basePath }: { store: PublicStor
     <div className="sf-card-copy">
       <span className="sf-card-category">{product.category_name ?? "Produto"}</span>
       <Link href={href} className="sf-card-title"><h3>{product.name}</h3></Link>
-      <strong className="sf-card-price">{formatCurrency(product.price)}</strong>
+      <ProductPrices pixPrice={product.price} cardPrice={product.card_price} />
       <div className="sf-card-actions"><Link className="sf-button sf-button-secondary" href={href}>Saiba mais</Link><CartAddButton productId={product.id} template={template} disabled={product.availability === "sold_out" || product.stock_quantity === 0}>{product.availability === "sold_out" || product.stock_quantity === 0 ? "Indisponível" : "Consultar"}</CartAddButton></div>
     </div>
   </article>;

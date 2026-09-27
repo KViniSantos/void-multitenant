@@ -85,6 +85,7 @@ export const productSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do produto.").max(100),
   description: z.string().trim().max(2000).default(""),
   price: z.number().finite().min(0, "O preço não pode ser negativo.").max(999999999),
+  card_price: z.number().finite().min(0, "O preço no cartão não pode ser negativo.").max(999999999),
   category_id: z.string().uuid().nullable(),
   active: z.boolean(),
   availability: z.enum(["in_stock", "preorder", "sold_out"]),

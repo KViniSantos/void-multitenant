@@ -137,6 +137,7 @@ export type Product = {
   slug: string;
   description: string;
   price: number;
+  card_price: number;
   image_url: string | null;
   image_urls: string[];
   availability: ProductAvailability;
@@ -159,6 +160,7 @@ export type StorefrontProduct = Pick<
   | "slug"
   | "description"
   | "price"
+  | "card_price"
   | "image_url"
   | "image_urls"
   | "availability"
@@ -183,6 +185,7 @@ export type PublicStorefront = StorefrontBrand & {
 export type PublicProductDetail = {
   store: StorefrontBrand;
   product: StorefrontProduct & { tenant_id: string; detail_sections: ProductDetailSection[] };
+  related_products: StorefrontProduct[];
 };
 
 type Defaulted<T, Keys extends keyof T> = Omit<T, Keys> & Partial<Pick<T, Keys>>;
@@ -193,7 +196,7 @@ export type Database = {
       profiles: Table<Profile, Defaulted<Profile, "platform_role" | "created_at" | "updated_at">>;
       tenants: Table<Tenant, Defaulted<Tenant, "id" | "logo_url" | "primary_color" | "secondary_color" | "whatsapp_number" | "storefront_template" | "storefront_config" | "active" | "created_at" | "updated_at">>;
       categories: Table<Category, Defaulted<Category, "id" | "created_at" | "updated_at">>;
-      products: Table<Product, Defaulted<Product, "id" | "image_url" | "image_urls" | "availability" | "product_condition" | "stock_quantity" | "featured" | "highlights" | "detail_sections" | "active" | "created_at" | "updated_at">>;
+      products: Table<Product, Defaulted<Product, "id" | "card_price" | "image_url" | "image_urls" | "availability" | "product_condition" | "stock_quantity" | "featured" | "highlights" | "detail_sections" | "active" | "created_at" | "updated_at">>;
       product_daily_metrics: Table<
         { tenant_id: string; product_id: string; metric_date: string; views: number },
         { tenant_id: string; product_id: string; metric_date: string; views?: number }
