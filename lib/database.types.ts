@@ -27,6 +27,7 @@ export type ProductAvailability = "in_stock" | "preorder" | "sold_out";
 export type ProductCondition = "new" | "used" | "refurbished";
 export type StorefrontSectionKey = "categories" | "featured" | "catalog" | "about" | "contact";
 export type ProductDetailSection = { title: string; items: { label: string; value: string }[] };
+export type ProductAttribute = { name: string; values: string[] };
 
 export type StorefrontConfig = {
   font_family: StorefrontFont;
@@ -146,6 +147,7 @@ export type Product = {
   featured: boolean;
   highlights: string[];
   detail_sections: ProductDetailSection[];
+  attributes: ProductAttribute[];
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -168,6 +170,7 @@ export type StorefrontProduct = Pick<
   | "stock_quantity"
   | "featured"
   | "highlights"
+  | "attributes"
 > & { category_name: string | null };
 
 export type StorefrontBrand = Pick<
@@ -196,7 +199,7 @@ export type Database = {
       profiles: Table<Profile, Defaulted<Profile, "platform_role" | "created_at" | "updated_at">>;
       tenants: Table<Tenant, Defaulted<Tenant, "id" | "logo_url" | "primary_color" | "secondary_color" | "whatsapp_number" | "storefront_template" | "storefront_config" | "active" | "created_at" | "updated_at">>;
       categories: Table<Category, Defaulted<Category, "id" | "created_at" | "updated_at">>;
-      products: Table<Product, Defaulted<Product, "id" | "card_price" | "image_url" | "image_urls" | "availability" | "product_condition" | "stock_quantity" | "featured" | "highlights" | "detail_sections" | "active" | "created_at" | "updated_at">>;
+      products: Table<Product, Defaulted<Product, "id" | "card_price" | "attributes" | "image_url" | "image_urls" | "availability" | "product_condition" | "stock_quantity" | "featured" | "highlights" | "detail_sections" | "active" | "created_at" | "updated_at">>;
       product_daily_metrics: Table<
         { tenant_id: string; product_id: string; metric_date: string; views: number },
         { tenant_id: string; product_id: string; metric_date: string; views?: number }

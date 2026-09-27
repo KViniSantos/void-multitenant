@@ -97,6 +97,12 @@ export const productSchema = z.object({
     title: z.string().trim().min(1).max(80),
     items: z.array(z.object({ label: z.string().trim().min(1).max(60), value: z.string().trim().min(1).max(240) })).max(12, "Cada seção pode ter no máximo 12 informações."),
   })).max(6, "O produto pode ter no máximo 6 seções de informação."),
+  attributes: z.array(z.object({
+    name: z.string().trim().min(1, "Informe o nome de cada atributo.").max(40),
+    values: z.array(z.string().trim().min(1).max(80)).min(1, "Informe ao menos um valor para cada atributo.").max(20, "Cada atributo pode ter no máximo 20 opções."),
+  })).max(8, "O produto pode ter no máximo 8 atributos.")
+    .refine((items) => new Set(items.map((item) => item.name.toLocaleLowerCase("pt-BR"))).size === items.length, "Os nomes dos atributos devem ser diferentes.")
+    .refine((items) => items.every((item) => new Set(item.values.map((value) => value.toLocaleLowerCase("pt-BR"))).size === item.values.length), "Remova valores repetidos dentro de um atributo."),
 });
 
 export const categorySchema = z.object({

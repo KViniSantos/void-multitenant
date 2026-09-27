@@ -19,6 +19,9 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
   let detailSections: unknown;
   try { detailSections = JSON.parse(formText(formData, "detail_sections")); }
   catch { return { error: "As seções de informações adicionais estão inválidas." }; }
+  let attributes: unknown;
+  try { attributes = JSON.parse(formText(formData, "attributes")); }
+  catch { return { error: "Os atributos do produto estão inválidos." }; }
   const parsed = productSchema.safeParse({
     name: formText(formData, "name"),
     description: formText(formData, "description"),
@@ -32,6 +35,7 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
     featured: formBoolean(formData.get("featured")),
     highlights: formText(formData, "highlights").split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
     detail_sections: detailSections,
+    attributes,
   });
   if (!parsed.success) return { error: firstIssue(parsed.error.issues) };
 
@@ -81,6 +85,7 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
     featured: parsed.data.featured,
     highlights: parsed.data.highlights,
     detail_sections: parsed.data.detail_sections,
+    attributes: parsed.data.attributes,
     active: parsed.data.active,
   };
 

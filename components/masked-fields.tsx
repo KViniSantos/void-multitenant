@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatCnpjInput, formatPriceInput, formatWhatsAppPhone } from "@/lib/input-formatting";
+import { formatCnpjInput, formatPriceInput, formatWhatsAppPhone, parsePriceInput } from "@/lib/input-formatting";
 
 export function WhatsAppField({ name = "whatsapp_number", defaultValue = "", required = false }: { name?: string; defaultValue?: string; required?: boolean }) {
   const [value, setValue] = useState(() => formatWhatsAppPhone(defaultValue));
@@ -10,7 +10,7 @@ export function WhatsAppField({ name = "whatsapp_number", defaultValue = "", req
 
 export function PriceField({ name = "price", defaultValue = "" }: { name?: string; defaultValue?: string | number }) {
   const [value, setValue] = useState(() => defaultValue === "" ? "" : formatPriceInput(defaultValue));
-  return <input name={name} type="text" inputMode="numeric" autoComplete="off" value={value} onChange={(event) => setValue(formatPriceInput(event.target.value))} placeholder="0,00" required />;
+  return <input name={name} type="text" inputMode="decimal" autoComplete="off" value={value} onChange={(event) => setValue(event.target.value)} onBlur={() => { const amount = parsePriceInput(value); if (amount !== null) setValue(formatPriceInput(amount)); }} placeholder="0,00" required />;
 }
 
 export function CnpjField({ name, defaultValue = "", onValueChange }: { name: string; defaultValue?: string; onValueChange?: (value: string) => void }) {

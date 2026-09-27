@@ -36,6 +36,7 @@ const storefrontProductSchema = z.object({
   image_urls: z.array(z.string()), availability: z.enum(["in_stock", "preorder", "sold_out"]),
   product_condition: z.enum(["new", "used", "refurbished"]), stock_quantity: z.number().int().nullable(),
   featured: z.boolean(), highlights: z.array(z.string()),
+  attributes: z.array(z.object({ name: z.string(), values: z.array(z.string()) })),
 });
 
 const storeBrandSchema = z.object({

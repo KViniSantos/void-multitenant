@@ -48,7 +48,7 @@ export function ProductCard({ store, product, template, basePath }: { store: Pic
       <span className="sf-card-category">{product.category_name ?? "Produto"}</span>
       <Link href={href} className="sf-card-title"><h3>{product.name}</h3></Link>
       <ProductPrices pixPrice={product.price} cardPrice={product.card_price} />
-      <div className="sf-card-actions"><Link className="sf-button sf-button-secondary" href={href}>Saiba mais</Link><CartAddButton productId={product.id} template={template} disabled={product.availability === "sold_out" || product.stock_quantity === 0}>{product.availability === "sold_out" || product.stock_quantity === 0 ? "Indisponível" : "Consultar"}</CartAddButton></div>
+      <div className="sf-card-actions"><Link className="sf-button sf-button-secondary" href={href}>Saiba mais</Link><CartAddButton productId={product.id} productName={product.name} attributes={product.attributes} template={template} disabled={product.availability === "sold_out" || product.stock_quantity === 0}>{product.availability === "sold_out" || product.stock_quantity === 0 ? "Indisponível" : "Adicionar ao carrinho"}</CartAddButton></div>
     </div>
   </article>;
 }
