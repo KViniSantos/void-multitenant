@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildPublicStoreUrl } from "../lib/public-store-url.ts";
+import { generateStoreQrDataUrl } from "../lib/qr-code.ts";
 
 test("custom domain takes precedence over the platform origin", () => {
   assert.equal(
@@ -80,4 +81,11 @@ test("canonical URLs must use HTTP(S) and contain a hostname", () => {
       buildPublicStoreUrl({ slug: "burger-test", domain: null }, platformUrl),
     );
   }
+});
+
+test("app QR helper generates a PNG data URL for a public Food store", async () => {
+  const dataUrl = await generateStoreQrDataUrl("https://void.example/burger-test");
+  assert.match(dataUrl, /^data:image\/png;base64,/);
+  const png = Buffer.from(dataUrl.split(",")[1], "base64");
+  assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
 });
