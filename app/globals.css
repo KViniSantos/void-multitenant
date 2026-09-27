@@ -351,3 +351,159 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .food-qr-actions { flex-direction:column; align-items:stretch; }
   .food-qr-actions .button { width:100%; }
 }
+
+/* Keep both administration surfaces as readable as the storefront. */
+.dashboard-shell,
+.admin-layout { font-size:15px; }
+.dashboard-shell .sidebar-label,
+.dashboard-shell .settings-preview-label,
+.dashboard-shell .eyebrow,
+.admin-layout .eyebrow { font-size:11px; }
+.dashboard-shell .sidebar-store { font-size:13px; }
+.dashboard-shell .sidebar-link,
+.dashboard-shell .mobile-dashboard-header > a,
+.dashboard-shell .page-heading p,
+.admin-layout .page-heading p,
+.admin-layout .admin-quick-nav a,
+.admin-layout .admin-header-right > span,
+.admin-layout .admin-header-right button,
+.dashboard-shell .button,
+.admin-layout .button { font-size:14px; }
+.dashboard-shell .button-small,
+.admin-layout .button-small { font-size:13px; }
+.dashboard-shell .text-link { font-size:14px; }
+.admin-layout .text-link { font-size:14px; }
+.dashboard-shell .admin-pagination,
+.admin-layout .admin-pagination { font-size:13px; }
+.dashboard-shell .admin-pagination a,
+.admin-layout .admin-pagination a { font-size:14px; }
+.admin-layout .product-list-filters input,
+.admin-layout .product-list-filters select { font-size:14px; }
+.dashboard-shell .field,
+.admin-layout .field,
+.admin-layout .switch-field strong { font-size:14px; }
+.dashboard-shell .field input:not([type="checkbox"]):not([type="color"]),
+.dashboard-shell .field textarea,
+.dashboard-shell .field select,
+.dashboard-shell .category-edit-form .field input,
+.admin-layout .field input:not([type="checkbox"]):not([type="color"]),
+.admin-layout .field textarea,
+.admin-layout .field select,
+.admin-layout .category-edit-form .field input,
+.dashboard-shell .product-list-filters input,
+.dashboard-shell .product-list-filters select { font-size:14px; }
+.dashboard-shell .field input[type="file"],
+.dashboard-shell .field > span small,
+.dashboard-shell .field > small,
+.admin-layout .field input[type="file"],
+.admin-layout .field > span small,
+.admin-layout .field > small { font-size:12px; }
+.dashboard-shell .stat-card > span,
+.dashboard-shell .panel-heading .eyebrow,
+.dashboard-shell .launch-panel > .eyebrow,
+.dashboard-shell .settings-visible,
+.dashboard-shell .settings-image-list span,
+.dashboard-shell .product-image-editor span,
+.dashboard-shell .category-row-main small,
+.dashboard-shell .tenant-switcher-copy small,
+.dashboard-shell .tenant-switcher-current,
+.dashboard-shell .tenant-switcher-open,
+.dashboard-shell .recent-row span,
+.dashboard-shell .empty-inline p,
+.dashboard-shell .recent-row strong + span,
+.dashboard-shell .top-product-list small,
+.dashboard-shell .admin-activity-row small,
+.dashboard-shell .tenant-table-head,
+.dashboard-shell .settings-preview-wrap small,
+.dashboard-shell .domain-setup-note > span { font-size:12px; }
+.dashboard-shell .stat-card > small,
+.dashboard-shell .dashboard-metric-note,
+.dashboard-shell .dashboard-no-views,
+.dashboard-shell .admin-activity-row,
+.dashboard-shell .recent-row strong,
+.dashboard-shell .empty-inline strong,
+.dashboard-shell .top-product-list strong,
+.dashboard-shell .top-product-list article > b,
+.dashboard-shell .tenant-switcher-copy strong,
+.dashboard-shell .category-row-main strong,
+.dashboard-shell .settings-preview-wrap strong,
+.dashboard-shell .settings-section-main > strong,
+.dashboard-shell .settings-image-list button,
+.dashboard-shell .template-choice strong,
+.dashboard-shell .category-tab,
+.dashboard-shell .admin-pagination,
+.dashboard-shell .admin-pagination a { font-size:13px; }
+.dashboard-shell .admin-activity-row > strong { font-size:13px; }
+.dashboard-shell .template-choice small,
+.dashboard-shell .settings-section-title,
+.dashboard-shell .settings-preview-wrap > div:first-child a,
+.dashboard-shell .settings-navigation-options .switch-field strong,
+.dashboard-shell .settings-navigation-options .switch-field small,
+.dashboard-shell .settings-order { font-size:12px; }
+.dashboard-shell .settings-section-title input { font-size:14px; }
+.dashboard-shell .admin-pagination a { font-size:14px; }
+.dashboard-shell .status-pill,
+.admin-layout .status-pill { font-size:12px; }
+.admin-layout .admin-badge,
+.admin-layout .tenant-table-head,
+.admin-layout .domain-admin-heading,
+.admin-layout .admin-kpi > span { font-size:11px; }
+.admin-layout .admin-header-right > span,
+.admin-layout .tenant-admin-row,
+.admin-layout .tenant-name-cell strong,
+.admin-layout .domain-setup-note strong,
+.admin-layout .domain-admin-row,
+.admin-layout .domain-admin-row > div strong { font-size:14px; }
+.admin-layout .tenant-name-cell small,
+.admin-layout .tenant-owner-cell,
+.admin-layout .tenant-domain-cell,
+.admin-layout .tenant-created,
+.admin-layout .domain-setup-note > span,
+.admin-layout .domain-admin-row small { font-size:12px; }
+.admin-layout .domain-setup-note p,
+.admin-layout .domain-setup-note li { font-size:13px; }
+.admin-layout .switch-field small,
+.admin-layout .admin-activity-row small,
+.admin-layout .category-empty p { font-size:12px; }
+.admin-layout .admin-activity-row { font-size:14px; }
+.admin-layout .admin-activity-row > strong { font-size:13px; }
+.admin-layout .category-empty strong,
+.admin-layout .action-message { font-size:14px; }
+.admin-layout .dashboard-no-views { font-size:14px; }
+.dashboard-shell .table-heading,
+.dashboard-shell .new-category-panel > .eyebrow { font-size:11px; }
+.dashboard-shell .product-admin-row,
+.dashboard-shell .action-message,
+.dashboard-shell .empty-table p,
+.dashboard-shell .new-category-panel > p,
+.dashboard-shell .form-footnote,
+.dashboard-shell .switch-field strong { font-size:14px; }
+.dashboard-shell .admin-product-main strong,
+.dashboard-shell .admin-price,
+.dashboard-shell .category-empty strong { font-size:14px; }
+.dashboard-shell .admin-product-main small,
+.dashboard-shell .product-admin-category,
+.dashboard-shell .product-updated,
+.dashboard-shell .count-badge,
+.dashboard-shell .switch-field small,
+.dashboard-shell .compact-switch strong,
+.dashboard-shell .category-tab span,
+.dashboard-shell .category-empty p { font-size:12px; }
+.dashboard-shell .category-edit-form .field input { font-size:14px; }
+.dashboard-shell .new-category-panel .button,
+.dashboard-shell .category-edit-form .button { font-size:13px; }
+
+@media (max-width:440px) {
+  .dashboard-shell .admin-pagination,
+  .dashboard-shell .admin-pagination a,
+  .admin-layout .admin-pagination,
+  .admin-layout .admin-pagination a { font-size:12px; }
+}
+@media (max-width:780px) {
+  .dashboard-shell .sidebar-link { font-size:12px; }
+  .dashboard-shell .stat-card > span,
+  .dashboard-shell .stat-card > small { font-size:11px; }
+}
+@media (max-width:440px) {
+  .dashboard-shell .sidebar-link { font-size:11px; }
+}
