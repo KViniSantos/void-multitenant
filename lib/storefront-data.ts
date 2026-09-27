@@ -3,34 +3,12 @@ import "server-only";
 import { cache } from "react";
 import { z } from "zod";
 import { createSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
-import { DEFAULT_STOREFRONT_CONFIG, type PublicProductDetail, type PublicStorefront, type StorefrontProduct } from "@/lib/database.types";
+import { type PublicProductDetail, type PublicStorefront, type StorefrontProduct } from "@/lib/database.types";
+import { normalizeStorefrontConfig } from "@/lib/storefront-config";
 
 export const PUBLIC_CATALOG_PAGE_SIZE = 24;
 const templateSchema = z.enum(["technology", "nature", "sports", "essentials"]);
 const tenantTypeSchema = z.enum(["retail", "food", "services"]);
-const sectionKeySchema = z.enum(["categories", "featured", "catalog", "about", "contact"]);
-const storefrontConfigSchema = z.object({
-  font_family: z.enum(["montserrat", "inter", "roboto", "lora", "playfair"]).default("montserrat"),
-  navigation: z.object({ show_home_link: z.boolean(), show_category_links: z.boolean(), show_category_filters: z.boolean(), show_featured_link: z.boolean(), show_about_link: z.boolean(), show_contact_link: z.boolean(), show_whatsapp_cta: z.boolean() }),
-  hero: z.object({
-    enabled: z.boolean(), mode: z.enum(["static", "split", "carousel"]), title: z.string(),
-    description: z.string(), cta_label: z.string(), image_urls: z.array(z.string()),
-  }),
-  sections: z.object({
-    categories: z.object({ enabled: z.boolean(), title: z.string() }),
-    featured: z.object({ enabled: z.boolean(), title: z.string(), layout: z.enum(["cards", "banners"]) }),
-    catalog: z.object({ enabled: z.boolean(), title: z.string(), columns: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5)]) }),
-    about: z.object({ enabled: z.boolean(), title: z.string(), text: z.string(), image_url: z.string().nullable() }),
-    contact: z.object({ enabled: z.boolean(), title: z.string() }),
-  }),
-  section_order: z.array(sectionKeySchema),
-  footer: z.object({
-    enabled: z.boolean(), show_logo: z.boolean(), show_categories: z.boolean(), show_contact: z.boolean(),
-    cnpj: z.string(), hours: z.string(), email: z.string(), address: z.string(), instagram: z.string(),
-    facebook: z.string(), tiktok: z.string(), youtube: z.string(), show_platform_credit: z.boolean(),
-  }),
-});
-
 const storefrontProductSchema = z.object({
   id: z.string().uuid(), category_id: z.string().uuid().nullable(), category_name: z.string().nullable(),
   name: z.string(), slug: z.string(), description: z.string(), price: z.number().nullable(), card_price: z.number().nullable(),
@@ -45,7 +23,7 @@ const storeBrandSchema = z.object({
   id: z.string().uuid(), name: z.string(), slug: z.string(), domain: z.string().nullable(), logo_url: z.string().nullable(),
   primary_color: z.string(), secondary_color: z.string(), tenant_type: tenantTypeSchema,
   storefront_template: templateSchema, whatsapp_number: z.string().nullable(),
-  storefront_config: storefrontConfigSchema,
+  storefront_config: z.unknown(),
 });
 
 const storefrontSchema = storeBrandSchema.extend({
@@ -74,12 +52,6 @@ function getPageArgs(query: StorefrontQuery) {
   return { page, limit: PUBLIC_CATALOG_PAGE_SIZE, offset: (page - 1) * PUBLIC_CATALOG_PAGE_SIZE };
 }
 
-function resolveConfig(value: unknown) {
-  const result = storefrontConfigSchema.safeParse(value);
-  if (result.success) return result.data;
-  return DEFAULT_STOREFRONT_CONFIG;
-}
-
 async function fetchStorefront(
   functionName: "get_public_storefront_by_domain_page" | "get_public_storefront_by_slug_page",
   lookupKey: string,
@@ -98,7 +70,7 @@ async function fetchStorefront(
   if (error || data === null) return null;
   const parsed = storefrontSchema.safeParse(data);
   if (!parsed.success) return null;
-  return { ...parsed.data, storefront_config: resolveConfig(parsed.data.storefront_config) } as PublicStorefront;
+  return { ...parsed.data, storefront_config: normalizeStorefrontConfig(parsed.data.storefront_config) } as PublicStorefront;
 }
 
 export const getStorefrontByDomain = cache(async (domain: string, query: StorefrontQuery = {}) =>
@@ -122,7 +94,7 @@ async function fetchProductDetail(
   if (!parsed.success) return null;
   return {
     ...parsed.data,
-    store: { ...parsed.data.store, storefront_config: resolveConfig(parsed.data.store.storefront_config) },
+    store: { ...parsed.data.store, storefront_config: normalizeStorefrontConfig(parsed.data.store.storefront_config) },
   } as PublicProductDetail;
 }
 

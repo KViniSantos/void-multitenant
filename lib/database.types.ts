@@ -27,13 +27,13 @@ export type PricingMode = "fixed" | "starting_at" | "quote";
 export type StorefrontFont = "montserrat" | "inter" | "roboto" | "lora" | "playfair";
 export type ProductAvailability = "in_stock" | "preorder" | "sold_out";
 export type ProductCondition = "new" | "used" | "refurbished";
-export type StorefrontSectionKey = "categories" | "featured" | "catalog" | "about" | "contact";
+export type StorefrontSectionKey = "categories" | "featured" | "catalog" | "about" | "contact" | "gallery";
 export type ProductDetailSection = { title: string; items: { label: string; value: string }[] };
 export type ProductAttribute = { name: string; values: string[] };
 
 export type StorefrontConfig = {
   font_family: StorefrontFont;
-  navigation: { show_home_link: boolean; show_category_links: boolean; show_category_filters: boolean; show_featured_link: boolean; show_about_link: boolean; show_contact_link: boolean; show_whatsapp_cta: boolean };
+  navigation: { show_home_link: boolean; show_category_links: boolean; show_category_filters: boolean; show_featured_link: boolean; show_about_link: boolean; show_contact_link: boolean; show_whatsapp_cta: boolean; show_gallery_link: boolean };
   hero: {
     enabled: boolean;
     mode: "static" | "split" | "carousel";
@@ -48,6 +48,7 @@ export type StorefrontConfig = {
     catalog: { enabled: boolean; title: string; columns: 2 | 3 | 4 | 5 };
     about: { enabled: boolean; title: string; text: string; image_url: string | null };
     contact: { enabled: boolean; title: string };
+    gallery: { enabled: boolean; title: string; image_urls: string[] };
   };
   section_order: StorefrontSectionKey[];
   footer: {
@@ -69,7 +70,7 @@ export type StorefrontConfig = {
 
 export const DEFAULT_STOREFRONT_CONFIG: StorefrontConfig = {
   font_family: "montserrat",
-  navigation: { show_home_link: true, show_category_links: true, show_category_filters: true, show_featured_link: true, show_about_link: false, show_contact_link: true, show_whatsapp_cta: true },
+  navigation: { show_home_link: true, show_category_links: true, show_category_filters: true, show_featured_link: true, show_about_link: false, show_contact_link: true, show_whatsapp_cta: true, show_gallery_link: true },
   hero: {
     enabled: true,
     mode: "split",
@@ -84,8 +85,9 @@ export const DEFAULT_STOREFRONT_CONFIG: StorefrontConfig = {
     catalog: { enabled: true, title: "Todos os produtos", columns: 4 },
     about: { enabled: false, title: "Sobre a loja", text: "", image_url: null },
     contact: { enabled: true, title: "Fale com a gente" },
+    gallery: { enabled: false, title: "Galeria", image_urls: [] },
   },
-  section_order: ["categories", "featured", "catalog", "about", "contact"],
+  section_order: ["categories", "featured", "catalog", "about", "contact", "gallery"],
   footer: {
     enabled: true,
     show_logo: true,

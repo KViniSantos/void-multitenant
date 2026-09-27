@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useActionState, useState } from "react";
 import type { StorefrontConfig, StorefrontTemplate, Tenant } from "@/lib/database.types";
-import { DEFAULT_STOREFRONT_CONFIG } from "@/lib/database.types";
+import { normalizeStorefrontConfig } from "@/lib/storefront-config";
 import { saveSettingsAction } from "@/app/actions/dashboard";
 import { ActionMessage } from "@/components/action-message";
 import { CnpjField, WhatsAppField } from "@/components/masked-fields";
@@ -17,7 +17,7 @@ const templates: { id: StorefrontTemplate; name: string; description: string }[]
   { id: "sports", name: "Esportes", description: "Energia, destaque e chamadas fortes." },
   { id: "essentials", name: "Essenciais", description: "Visual claro, neutro e versátil." },
 ];
-const sectionNames: Record<StorefrontConfig["section_order"][number], string> = { categories: "Categorias", featured: "Destaques", catalog: "Catálogo", about: "Sobre a loja", contact: "Contato" };
+const sectionNames: Record<StorefrontConfig["section_order"][number], string> = { categories: "Categorias", featured: "Destaques", catalog: "Catálogo", about: "Sobre a loja", contact: "Contato", gallery: "Galeria" };
 
 export function SettingsForm({ tenant }: { tenant: Tenant }) {
   const [uploadStatus, setUploadStatus] = useState("");
@@ -81,11 +81,7 @@ export function SettingsForm({ tenant }: { tenant: Tenant }) {
     }
   }, {});
   const [template, setTemplate] = useState<StorefrontTemplate>(tenant.storefront_template);
-  const [config, setConfig] = useState<StorefrontConfig>(() => ({
-    ...DEFAULT_STOREFRONT_CONFIG,
-    ...tenant.storefront_config,
-    font_family: tenant.storefront_config?.font_family ?? "montserrat",
-  }));
+  const [config, setConfig] = useState<StorefrontConfig>(() => normalizeStorefrontConfig(tenant.storefront_config));
   const updateHero = (patch: Partial<StorefrontConfig["hero"]>) => setConfig((current) => ({ ...current, hero: { ...current.hero, ...patch } }));
   const updateNavigation = (patch: Partial<StorefrontConfig["navigation"]>) => setConfig((current) => ({ ...current, navigation: { ...current.navigation, ...patch } }));
   const updateSection = <K extends keyof StorefrontConfig["sections"]>(key: K, patch: Partial<StorefrontConfig["sections"][K]>) => setConfig((current) => ({ ...current, sections: { ...current.sections, [key]: { ...current.sections[key], ...patch } } }));
