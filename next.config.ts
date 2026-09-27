@@ -1,7 +1,21 @@
 import type { NextConfig } from "next";
 
+const supabaseStorageUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  : null;
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  images: {
+    remotePatterns: [
+      {
+        protocol: supabaseStorageUrl?.protocol === "http:" ? "http" : "https",
+        hostname: supabaseStorageUrl?.hostname ?? "*.supabase.co",
+        ...(supabaseStorageUrl?.port ? { port: supabaseStorageUrl.port } : {}),
+        pathname: "/storage/v1/object/public/store-assets/**",
+      },
+    ],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "6mb",

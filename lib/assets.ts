@@ -24,7 +24,7 @@ export async function uploadTenantAsset(
   supabase: SupabaseClient<Database>,
   file: FormDataEntryValue | null,
   tenantId: string,
-  folder: "logo" | "products",
+  folder: "logo" | "products" | "banners" | "about",
 ) {
   if (!(file instanceof File) || file.size === 0) return { url: null, path: null, error: null };
   if (!allowedTypes[file.type]) {
@@ -46,4 +46,26 @@ export async function uploadTenantAsset(
   if (error) return { url: null, path: null, error: "Não foi possível enviar a imagem. Tente novamente." };
   const { data } = supabase.storage.from("store-assets").getPublicUrl(path);
   return { url: data.publicUrl, path, error: null };
+}
+
+export async function uploadTenantAssets(
+  supabase: SupabaseClient<Database>,
+  files: FormDataEntryValue[],
+  tenantId: string,
+  folder: "products" | "banners",
+  maxFiles = 8,
+) {
+  const selected = files.filter((file): file is File => file instanceof File && file.size > 0);
+  if (selected.length > maxFiles) return { urls: [] as string[], paths: [] as string[], error: `Envie no máximo ${maxFiles} imagens.` };
+  const urls: string[] = [];
+  const paths: string[] = [];
+  for (const file of selected) {
+    const result = await uploadTenantAsset(supabase, file, tenantId, folder);
+    if (result.error) {
+      if (paths.length) await supabase.storage.from("store-assets").remove(paths);
+      return { urls: [] as string[], paths: [] as string[], error: result.error };
+    }
+    if (result.url && result.path) { urls.push(result.url); paths.push(result.path); }
+  }
+  return { urls, paths, error: null };
 }

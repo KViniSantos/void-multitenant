@@ -1,13 +1,23 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import type { User } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Profile, Tenant } from "@/lib/database.types";
+import type { Profile, Tenant, TenantSummary } from "@/lib/database.types";
 
-export async function getUserContext() {
+type UserContext = {
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+  user: User | null;
+  profile: Profile | null;
+  tenant: Tenant | null;
+  tenants: TenantSummary[];
+};
+
+export async function getUserContext(): Promise<UserContext> {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { supabase, user: null, profile: null, tenant: null };
+  if (!user) return { supabase, user: null, profile: null, tenant: null, tenants: [] };
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -15,19 +25,26 @@ export async function getUserContext() {
     .eq("id", user.id)
     .maybeSingle();
 
-  const { data: tenant } = await supabase
+  const { data: tenantData } = await supabase
     .from("tenants")
-    .select("id,owner_id,name,slug,domain,logo_url,primary_color,secondary_color,whatsapp_number,active,created_at,updated_at")
+    .select("id,name,slug,domain,logo_url,active,created_at")
     .eq("owner_id", user.id)
     .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .limit(100);
+  const tenants = (tenantData ?? []) as TenantSummary[];
+  const tenantCookie = (await cookies()).get("void_active_tenant")?.value;
+  const selectedTenant = tenants.find((item) => item.id === tenantCookie) ?? tenants[0] ?? null;
+  const { data: fullTenant } = selectedTenant
+    ? await supabase.from("tenants").select("*").eq("id", selectedTenant.id).eq("owner_id", user.id).maybeSingle()
+    : { data: null };
+  const tenant = (fullTenant ?? null) as Tenant | null;
 
   return {
     supabase,
     user,
     profile: profile as Profile | null,
-    tenant: tenant as Tenant | null,
+    tenant,
+    tenants,
   };
 }
 

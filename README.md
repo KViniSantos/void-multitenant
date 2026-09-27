@@ -36,11 +36,21 @@ No painel do projeto Supabase:
 
 ## Deploy
 
-1. Publique o repositório em GitHub e importe-o como um único projeto Next.js na Vercel.
-2. Cadastre as variáveis de ambiente acima na Vercel para Production e Preview. `NEXT_PUBLIC_SITE_URL` deve apontar para o domínio principal da plataforma, usado nos convites; `NEXT_PUBLIC_PLATFORM_HOST` aceita vários hosts separados por vírgula.
-3. Faça o deploy e confirme que o build passou. Crie também o primeiro usuário administrador e execute o SQL de promoção acima antes de tentar abrir `/admin`.
-4. Para cada domínio de loja, associe o domínio ao mesmo projeto Vercel e configure no provedor DNS os registros que a Vercel indicar. Depois, salve o domínio sem `https://` no cadastro do tenant. A aplicação confere o hostname da requisição com esse domínio e renderiza somente a loja correspondente.
-5. Mantenha o domínio principal da plataforma em `NEXT_PUBLIC_PLATFORM_HOST`; hosts `*.vercel.app` e `localhost` são reconhecidos como hosts da plataforma.
+1. Antes de publicar código que dependa de migrations novas, conecte o Supabase e aplique-as:
+
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref SEU_PROJECT_REF
+   npx supabase db push --dry-run
+   npx supabase db push
+   ```
+
+   Confira que a prévia inclui as migrations pendentes. Para esta versão, são `202609260002_storefront_v2.sql` e `202609260003_storefront_navigation_defaults.sql`. Se o CLI retornar `403`, entre com uma conta que tenha permissão administrativa no projeto Supabase ou peça ao proprietário para conceder acesso, e repita os comandos.
+2. Publique o repositório no GitHub e importe-o como um único projeto Next.js na Vercel.
+3. Cadastre as variáveis acima na Vercel para Production e Preview. Para o domínio atual, use `NEXT_PUBLIC_SITE_URL=https://void-multitenant.vercel.app` e `NEXT_PUBLIC_PLATFORM_HOST=void-multitenant.vercel.app`. O segundo aceita vários hosts separados por vírgula.
+4. Faça o deploy e confirme que o build passou. Crie também o primeiro usuário administrador e execute o SQL de promoção acima antes de tentar abrir `/admin`.
+5. Para cada domínio de loja, associe o domínio ao mesmo projeto Vercel e configure no provedor DNS os registros que a Vercel indicar. Depois, salve o domínio sem `https://` no cadastro do tenant. A aplicação confere o hostname da requisição com esse domínio e renderiza somente a loja correspondente.
+6. Mantenha o domínio principal da plataforma em `NEXT_PUBLIC_PLATFORM_HOST`; hosts `*.vercel.app` e `localhost` são reconhecidos como hosts da plataforma.
 
 O domínio precisa estar associado ao projeto Vercel além de ser salvo no tenant. Para domínios raiz (`loja.com.br`) e subdomínios (`www.loja.com.br`), os registros DNS necessários são diferentes; use os valores específicos exibidos nas configurações do projeto. Veja [configuração de domínio na Vercel](https://vercel.com/docs/domains/set-up-custom-domain). Confirme também o limite de domínios do plano da conta antes de escalar o número de lojas.
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { StorefrontConfig } from "@/lib/database.types";
 
 export const slugify = (value: string) =>
   value
@@ -25,7 +26,6 @@ export const normalizeWhatsAppNumber = (value: string) => {
   return normalized;
 };
 
-const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Use uma cor hexadecimal, por exemplo #1E3A34.");
 const whatsappSchema = z.string().trim().max(32).transform((value, context) => {
   if (!value) return null;
   const normalized = normalizeWhatsAppNumber(value);
@@ -47,17 +47,50 @@ const domainSchema = z.string().trim().max(253).transform((value, context) => {
 
 export const tenantSettingsSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome da loja.").max(80),
-  primary_color: colorSchema,
-  secondary_color: colorSchema,
+  storefront_template: z.enum(["technology", "nature", "sports", "essentials"]),
+  storefront_config: z.string().max(24_000).transform((value, context): StorefrontConfig => {
+    let input: unknown;
+    try { input = JSON.parse(value); } catch {
+      context.addIssue({ code: "custom", message: "As configurações visuais estão inválidas." });
+      return z.NEVER;
+    }
+    const bool = z.boolean();
+    const title = z.string().trim().min(1).max(80);
+    const social = z.string().trim().max(500).refine((url) => !url || /^https:\/\//i.test(url), "Use um link seguro iniciado por https://.");
+    const schema = z.object({
+      navigation: z.object({ show_home_link: bool, show_category_links: bool, show_category_filters: bool, show_featured_link: bool, show_about_link: bool, show_contact_link: bool, show_whatsapp_cta: bool }),
+      hero: z.object({ enabled: bool, mode: z.enum(["static", "split", "carousel"]), title, description: z.string().trim().max(500), cta_label: z.string().trim().max(50), image_urls: z.array(z.string().url()).max(8) }),
+      sections: z.object({
+        categories: z.object({ enabled: bool, title }),
+        featured: z.object({ enabled: bool, title, layout: z.enum(["cards", "banners"]) }),
+        catalog: z.object({ enabled: bool, title, columns: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5)]) }),
+        about: z.object({ enabled: bool, title, text: z.string().trim().max(3000), image_url: z.string().url().nullable() }),
+        contact: z.object({ enabled: bool, title }),
+      }),
+      section_order: z.array(z.enum(["categories", "featured", "catalog", "about", "contact"])).length(5).refine((items) => new Set(items).size === 5, "A ordem das seções está inválida."),
+      footer: z.object({ enabled: bool, show_logo: bool, show_categories: bool, show_contact: bool, cnpj: z.string().trim().max(24), hours: z.string().trim().max(120), email: z.string().trim().email().or(z.literal("")), address: z.string().trim().max(300), instagram: social, facebook: social, tiktok: social, youtube: social, show_platform_credit: bool }),
+    });
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) {
+      context.addIssue({ code: "custom", message: parsed.error.issues[0]?.message ?? "Confira os campos das seções e do rodapé." });
+      return z.NEVER;
+    }
+    return parsed.data;
+  }),
   whatsapp_number: whatsappSchema,
 });
 
 export const productSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do produto.").max(100),
   description: z.string().trim().max(2000).default(""),
-  price: z.coerce.number().finite().min(0, "O preço não pode ser negativo.").max(999999999),
+  price: z.number().finite().min(0, "O preço não pode ser negativo.").max(999999999),
   category_id: z.string().uuid().nullable(),
   active: z.boolean(),
+  availability: z.enum(["in_stock", "preorder", "sold_out"]),
+  product_condition: z.enum(["new", "used", "refurbished"]),
+  stock_quantity: z.number().int().nonnegative().nullable(),
+  featured: z.boolean(),
+  highlights: z.array(z.string().trim().min(1).max(180)).max(10),
 });
 
 export const categorySchema = z.object({
@@ -72,6 +105,7 @@ export const tenantCreateSchema = z.object({
   owner_email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
   domain: domainSchema,
   whatsapp_number: whatsappSchema,
+  storefront_template: z.enum(["technology", "nature", "sports", "essentials"]).default("essentials"),
 });
 
 export function formBoolean(value: FormDataEntryValue | null) {

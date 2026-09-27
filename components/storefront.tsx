@@ -1,120 +1,141 @@
-"use client";
-
 import Image from "next/image";
-import { useMemo, useState, type CSSProperties } from "react";
-import type { PublicStorefront, StorefrontProduct } from "@/lib/database.types";
+import Link from "next/link";
+import type { CSSProperties, ReactNode } from "react";
+import type { PublicStorefront, StorefrontConfig, StorefrontProduct, StorefrontTemplate } from "@/lib/database.types";
 import { formatCurrency } from "@/lib/format";
+import { productHref } from "@/lib/storefront-data";
+import { CartAddButton, StoreCart } from "@/components/store-cart";
+import { HeroCarousel } from "@/components/storefront-carousel";
 
-type StorefrontProps = { store: PublicStorefront };
+type FilterState = { page: number; categoryId: string | null; availability: string | null; totalPages: number };
+type Props = { store: PublicStorefront; filters?: FilterState; basePath?: string };
 
-export function Storefront({ store }: StorefrontProps) {
-  const [category, setCategory] = useState<string>("all");
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [cartOpen, setCartOpen] = useState(false);
+const availabilityLabels = { in_stock: "Pronta entrega", preorder: "Sob encomenda", sold_out: "Indisponível" } as const;
 
-  const visibleProducts = useMemo(
-    () => category === "all" ? store.products : store.products.filter((product) => product.category_id === category),
-    [category, store.products],
-  );
-  const cartProducts = useMemo(
-    () => store.products.filter((product) => (cart[product.id] ?? 0) > 0),
-    [cart, store.products],
-  );
-  const itemCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
-  const total = cartProducts.reduce((sum, product) => sum + product.price * cart[product.id], 0);
-  const brandStyle = {
-    "--store-primary": store.primary_color,
-    "--store-secondary": store.secondary_color,
-  } as CSSProperties;
+function qs(filters: FilterState, overrides: Partial<FilterState> = {}) {
+  const state = { ...filters, ...overrides };
+  const query = new URLSearchParams();
+  if (state.categoryId) query.set("categoria", state.categoryId);
+  if (state.availability) query.set("disponibilidade", state.availability);
+  if (state.page > 1) query.set("pagina", String(state.page));
+  const value = query.toString();
+  return value ? `?${value}` : "";
+}
 
-  function setQuantity(product: StorefrontProduct, quantity: number) {
-    setCart((current) => {
-      const next = { ...current };
-      if (quantity <= 0) delete next[product.id];
-      else next[product.id] = Math.min(99, quantity);
-      return next;
-    });
-  }
+function storePath(basePath: string, hash = "") {
+  const base = basePath;
+  return base + hash;
+}
 
-  function checkout() {
-    if (!store.whatsapp_number || cartProducts.length === 0) return;
-    const lines = cartProducts.map((product, index) => {
-      const quantity = cart[product.id];
-      const subtotal = product.price * quantity;
-      return `${index + 1}. ${product.name}\n   Quantidade: ${quantity}\n   Valor: ${formatCurrency(subtotal)}`;
-    });
-    const message = `Olá! Tenho interesse nos seguintes produtos:\n\n${lines.join("\n\n")}\n\nTotal: ${formatCurrency(total)}\n\nGostaria de mais informações.`;
-    window.open(`https://wa.me/${store.whatsapp_number}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
-  }
+function catalogHref(basePath: string, filters: FilterState) {
+  return `${basePath}${qs(filters)}#catalogo`;
+}
 
-  return (
-    <main className="storefront" style={brandStyle}>
-      <header className="store-header">
-        <a className="store-brand" href="#inicio" aria-label={store.name}>
-          {store.logo_url ? <Image className="store-logo" src={store.logo_url} alt="" width={52} height={52} unoptimized /> : <span className="store-logo-fallback">{store.name.slice(0, 1).toUpperCase()}</span>}
-          <span className="store-brand-name">{store.name}</span>
-        </a>
-        <div className="store-header-actions">
-          <span className="store-note">Atendimento próximo, compra fácil</span>
-          <button className="cart-open-button" onClick={() => setCartOpen(true)} aria-label={`Abrir sacola. ${itemCount} itens`}>
-            <span className="cart-icon">▢</span><span>Sacola</span><span className="cart-count">{itemCount}</span>
-          </button>
-        </div>
-      </header>
+function ProductCard({ store, product, template, basePath }: { store: PublicStorefront; product: StorefrontProduct; template: StorefrontTemplate; basePath: string }) {
+  const href = productHref(store, product, basePath);
+  return <article className="sf-product-card">
+    <Link className="sf-product-image" href={href} aria-label={`Ver detalhes de ${product.name}`}>
+      {product.image_url ? <Image src={product.image_url} alt={product.name} fill sizes="(max-width: 640px) 90vw, (max-width: 1000px) 45vw, 25vw" /> : <span className="sf-image-placeholder">{store.name.slice(0, 1)}</span>}
+      <span className="sf-product-badges">
+        {product.product_condition !== "new" ? <span>{product.product_condition === "used" ? "Seminovo" : "Recondicionado"}</span> : null}
+        <span>{availabilityLabels[product.availability]}</span>
+        {product.featured ? <span className="sf-badge-featured">Destaque</span> : null}
+      </span>
+    </Link>
+    <div className="sf-card-copy">
+      <span className="sf-card-category">{product.category_name ?? "Produto"}</span>
+      <Link href={href} className="sf-card-title"><h3>{product.name}</h3></Link>
+      <strong className="sf-card-price">{formatCurrency(product.price)}</strong>
+      <div className="sf-card-actions"><Link className="sf-button sf-button-secondary" href={href}>Saiba mais</Link><CartAddButton productId={product.id} template={template} disabled={product.availability === "sold_out" || product.stock_quantity === 0}>{product.availability === "sold_out" || product.stock_quantity === 0 ? "Indisponível" : "Consultar"}</CartAddButton></div>
+    </div>
+  </article>;
+}
 
-      <section className="store-hero" id="inicio">
-        <div className="store-hero-copy">
-          <span className="eyebrow"><span className="eyebrow-dot" /> SUA PRÓXIMA DESCOBERTA</span>
-          <h1>Escolhas feitas<br />com <em>intenção.</em></h1>
-          <p>Encontre o que combina com você. Gostou? A gente conversa pelo WhatsApp.</p>
-          <a className="button button-lime" href="#catalogo">Explorar produtos <span>↓</span></a>
-        </div>
-        <div className="hero-decoration" aria-hidden="true">
-          <div className="hero-orbit hero-orbit-one" /><div className="hero-orbit hero-orbit-two" />
-          <div className="hero-stamp"><span>CURADORIA</span><b>◌</b><span>FEITA PRA VOCÊ</span></div>
-          <div className="hero-small-tag">novas<br />descobertas</div>
-        </div>
-        <div className="hero-index"><span>01</span> / 03</div>
-      </section>
+function Hero({ store, config }: { store: PublicStorefront; config: StorefrontConfig }) {
+  const hero = config.hero;
+  if (!hero.enabled) return null;
+  const image = hero.image_urls[0];
+  const visual = hero.mode === "carousel" && hero.image_urls.length > 1
+    ? <HeroCarousel images={hero.image_urls} title={hero.title} />
+    : image ? <div className="sf-hero-image"> <Image src={image} alt="" fill priority sizes="(max-width: 760px) 100vw, 50vw" /></div> : <div className="sf-hero-art" aria-hidden="true"><span>{store.name.slice(0, 1)}</span><i /><i /></div>;
+  return <section className={`sf-hero sf-hero-${hero.mode}`} id="inicio">
+    <div className="sf-hero-copy"><span className="sf-eyebrow">{store.name}</span><h1>{hero.title}</h1><p>{hero.description}</p><a className="sf-button sf-button-primary" href="#catalogo">{hero.cta_label}<span aria-hidden="true">→</span></a></div>
+    {visual}
+  </section>;
+}
 
-      <section className="store-catalog" id="catalogo">
-        <div className="catalog-heading">
-          <div><span className="eyebrow eyebrow-dark">A VITRINE</span><h2>Peças que <em>encantam.</em></h2></div>
-          <p>Escolha com calma.<br />Estamos aqui para ajudar.</p>
-        </div>
-        <div className="category-tabs" aria-label="Filtrar por categoria">
-          <button className={category === "all" ? "category-tab selected" : "category-tab"} onClick={() => setCategory("all")}>Tudo <span>{store.products.length}</span></button>
-          {store.categories.map((item) => <button key={item.id} className={category === item.id ? "category-tab selected" : "category-tab"} onClick={() => setCategory(item.id)}>{item.name}</button>)}
-        </div>
-        {visibleProducts.length ? <div className="product-grid">
-          {visibleProducts.map((product, index) => (
-            <article className="store-product-card" key={product.id}>
-              <div className={`product-image-frame product-art-${index % 4}`}>
-                {product.image_url ? <Image src={product.image_url} alt={product.name} fill sizes="(max-width: 700px) 90vw, (max-width: 1100px) 45vw, 30vw" unoptimized /> : <div className="image-placeholder"><span>{store.name.slice(0, 1)}</span><small>IMAGEM DO PRODUTO</small></div>}
-                <span className="product-number">{String(index + 1).padStart(2, "0")}</span>
-                <button className="product-add" onClick={() => setQuantity(product, (cart[product.id] ?? 0) + 1)} aria-label={`Adicionar ${product.name} à sacola`}>+</button>
-              </div>
-              <div className="product-card-meta"><span>{product.category_name ?? "SELEÇÃO"}</span>{cart[product.id] ? <b>{cart[product.id]} na sacola</b> : null}</div>
-              <div className="product-card-title"><h3>{product.name}</h3><span>{formatCurrency(product.price)}</span></div>
-              {product.description ? <p className="product-description">{product.description}</p> : <p className="product-description">Uma escolha especial para o seu dia a dia.</p>}
-            </article>
-          ))}
-        </div> : <div className="store-empty"><span>◌</span><h3>{store.products.length ? "Ainda não há itens nesta categoria." : "Estamos preparando novidades."}</h3><p>Volte em breve para descobrir a seleção da loja.</p></div>}
-      </section>
+function QuickFilters({ store, config, filters, basePath }: { store: PublicStorefront; config: StorefrontConfig; filters: FilterState; basePath: string }) {
+  const activeCategory = filters.categoryId;
+  const activeAvailability = filters.availability;
+  const base = { ...filters, page: 1 };
+  return <div className="sf-filter-bar">
+    <div className="sf-filter-group" aria-label="Filtrar por categoria">
+      <Link className={!activeCategory ? "sf-chip is-active" : "sf-chip"} href={catalogHref(basePath, { ...base, categoryId: null })}>Todas as categorias</Link>
+      {config.navigation.show_category_filters ? store.categories.map((category) => <Link key={category.id} className={activeCategory === category.id ? "sf-chip is-active" : "sf-chip"} href={catalogHref(basePath, { ...base, categoryId: category.id })}>{category.name}</Link>) : null}
+    </div>
+    <div className="sf-filter-group sf-availability-filters" aria-label="Filtrar por disponibilidade">
+      <span className="sf-filter-label">Disponibilidade</span>
+      <Link className={!activeAvailability ? "sf-chip is-active" : "sf-chip"} href={catalogHref(basePath, { ...base, availability: null })}>Todas</Link>
+      <Link className={activeAvailability === "in_stock" ? "sf-chip is-active" : "sf-chip"} href={catalogHref(basePath, { ...base, availability: "in_stock" })}>Pronta entrega</Link>
+      <Link className={activeAvailability === "preorder" ? "sf-chip is-active" : "sf-chip"} href={catalogHref(basePath, { ...base, availability: "preorder" })}>Sob encomenda</Link>
+      <Link className={activeAvailability === "sold_out" ? "sf-chip is-active" : "sf-chip"} href={catalogHref(basePath, { ...base, availability: "sold_out" })}>Indisponível</Link>
+    </div>
+  </div>;
+}
 
-      <footer className="store-footer"><a className="store-brand" href="#inicio"><span className="store-logo-fallback">{store.name.slice(0, 1).toUpperCase()}</span><span className="store-brand-name">{store.name}</span></a><span>Uma boa compra começa com uma boa conversa.</span><a href="#catalogo">Voltar ao catálogo ↑</a></footer>
+function Pagination({ filters, basePath }: { filters: FilterState; basePath: string }) {
+  if (filters.totalPages <= 1) return null;
+  return <nav className="sf-pagination" aria-label="Paginação do catálogo">
+    {filters.page > 1 ? <Link className="sf-button sf-button-secondary" href={catalogHref(basePath, { ...filters, page: filters.page - 1 })}>← Anterior</Link> : <span />}
+    <span>Página {filters.page} de {filters.totalPages}</span>
+    {filters.page < filters.totalPages ? <Link className="sf-button sf-button-secondary" href={catalogHref(basePath, { ...filters, page: filters.page + 1 })}>Próxima →</Link> : <span />}
+  </nav>;
+}
 
-      {cartOpen ? <div className="cart-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
-        <section className="cart-panel" role="dialog" aria-modal="true" aria-labelledby="cart-title">
-          <div className="cart-panel-head"><div><span className="eyebrow eyebrow-dark">SUA SELEÇÃO</span><h2 id="cart-title">Sua sacola <span>({itemCount})</span></h2></div><button className="icon-close" onClick={() => setCartOpen(false)} aria-label="Fechar sacola">×</button></div>
-          {cartProducts.length ? <div className="cart-items">{cartProducts.map((product) => <article className="cart-line" key={product.id}>
-            <div className="cart-line-image">{product.image_url ? <Image src={product.image_url} alt="" fill sizes="80px" unoptimized /> : <span>{store.name.slice(0, 1)}</span>}</div>
-            <div className="cart-line-info"><h3>{product.name}</h3><span>{formatCurrency(product.price)}</span><div className="quantity-control"><button onClick={() => setQuantity(product, cart[product.id] - 1)} aria-label={`Diminuir quantidade de ${product.name}`}>−</button><span>{cart[product.id]}</span><button onClick={() => setQuantity(product, cart[product.id] + 1)} aria-label={`Aumentar quantidade de ${product.name}`}>+</button></div></div>
-            <strong>{formatCurrency(product.price * cart[product.id])}</strong>
-          </article>)}</div> : <div className="cart-empty"><span>▢</span><h3>A sacola está esperando.</h3><p>Adicione seus favoritos e a gente continua pelo WhatsApp.</p><button className="button button-outline" onClick={() => setCartOpen(false)}>Ver produtos</button></div>}
-          <div className="cart-summary"><div><span>Subtotal</span><strong>{formatCurrency(total)}</strong></div><small>Entrega e detalhes combinados direto com a loja.</small><button className="button button-dark checkout-button" onClick={checkout} disabled={!cartProducts.length || !store.whatsapp_number}>{store.whatsapp_number ? "Finalizar pelo WhatsApp" : "WhatsApp não configurado"}<span>↗</span></button>{store.whatsapp_number ? <p>Você vai conversar diretamente com {store.name}.</p> : null}</div>
-        </section>
-      </div> : null}
-    </main>
-  );
+function SectionContent({ id, store, config, filters, basePath }: { id: keyof StorefrontConfig["sections"]; store: PublicStorefront; config: StorefrontConfig; filters: FilterState; basePath: string }): ReactNode {
+  const settings = config.sections[id];
+  if (!settings.enabled) return null;
+  if (id === "categories") return <section className="sf-section sf-categories-section" id="categorias"><div className="sf-section-heading"><span className="sf-eyebrow">Explore por assunto</span><h2>{settings.title}</h2></div><div className="sf-category-grid">{store.categories.map((category) => <Link key={category.id} href={catalogHref(basePath, { ...filters, page: 1, categoryId: category.id })}>{category.name}<span>→</span></Link>)}</div></section>;
+  if (id === "featured") { const featured = config.sections.featured; return <section className={`sf-section sf-featured-section featured-${featured.layout}`} id="destaques"><div className="sf-section-heading"><span className="sf-eyebrow">Seleção da loja</span><h2>{featured.title}</h2></div>{store.featured_products.length ? <div className="sf-product-grid" style={{ "--catalog-columns": Math.min(config.sections.catalog.columns, 4) } as CSSProperties}>{store.featured_products.map((product) => <ProductCard key={product.id} store={store} product={product} template={store.storefront_template} basePath={basePath} />)}</div> : <p className="sf-muted">Os produtos em destaque aparecerão aqui.</p>}</section>; }
+  if (id === "catalog") { const catalog = config.sections.catalog; return <section className="sf-section sf-catalog-section" id="catalogo"><div className="sf-section-heading"><span className="sf-eyebrow">Escolha com calma</span><h2>{catalog.title}</h2><p>{store.total_products} {store.total_products === 1 ? "produto" : "produtos"} para conhecer</p></div><QuickFilters store={store} config={config} filters={filters} basePath={basePath} />{store.products.length ? <div className="sf-product-grid" style={{ "--catalog-columns": catalog.columns } as CSSProperties}>{store.products.map((product) => <ProductCard key={product.id} store={store} product={product} template={store.storefront_template} basePath={basePath} />)}</div> : <div className="sf-empty"><h3>Nenhum produto encontrado</h3><p>Altere os filtros para ver outros itens.</p><Link href={storePath(basePath, "#catalogo")}>Limpar filtros</Link></div>}<Pagination filters={filters} basePath={basePath} /></section>; }
+  if (id === "about") { const about = config.sections.about; return <section className="sf-section sf-about-section" id="sobre"><div><span className="sf-eyebrow">Nossa história</span><h2>{about.title}</h2><p>{about.text || `A ${store.name} seleciona produtos com cuidado para atender você.`}</p></div>{about.image_url ? <div className="sf-about-image"><Image src={about.image_url} alt="" fill sizes="(max-width: 760px) 100vw, 40vw" /></div> : null}</section>; }
+  return <section className="sf-contact-section" id="contato"><div><span className="sf-eyebrow">Atendimento humano</span><h2>{settings.title}</h2><p>Fale com a equipe da {store.name} para tirar dúvidas e combinar seu pedido.</p></div>{store.whatsapp_number ? <a className="sf-button sf-button-primary" href={`https://wa.me/${store.whatsapp_number}`} target="_blank" rel="noreferrer">Conversar no WhatsApp <span>↗</span></a> : null}</section>;
+}
+
+function StoreFooter({ store, config, basePath }: { store: PublicStorefront; config: StorefrontConfig; basePath: string }) {
+  const footer = config.footer;
+  if (!footer.enabled) return null;
+  const links = [["Instagram", footer.instagram], ["Facebook", footer.facebook], ["TikTok", footer.tiktok], ["YouTube", footer.youtube]].filter((item) => item[1]);
+  return <footer className="sf-footer" id="rodape">
+    <div className="sf-footer-main">
+      <div className="sf-footer-brand">{footer.show_logo ? <a className="sf-brand" href="#inicio">{store.logo_url ? <Image className="sf-logo" src={store.logo_url} alt="" width={150} height={56} /> : <span className="sf-logo-fallback">{store.name.slice(0, 1)}</span>}<strong>{store.name}</strong></a> : <strong>{store.name}</strong>}<p>Atendimento próximo para ajudar você a escolher.</p>{links.length ? <div className="sf-social-links">{links.map(([label, url]) => <a key={label} href={url!} target="_blank" rel="noreferrer">{label}</a>)}</div> : null}{footer.cnpj ? <small>CNPJ {footer.cnpj}</small> : null}</div>
+      {footer.show_categories ? <div className="sf-footer-column"><h3>Categorias</h3>{store.categories.slice(0, 8).map((category) => <a key={category.id} href={catalogHref(basePath, { page: 1, categoryId: category.id, availability: null, totalPages: 1 })}>{category.name}</a>)}</div> : null}
+      {footer.show_contact ? <div className="sf-footer-column"><h3>Atendimento</h3>{footer.hours ? <p>{footer.hours}</p> : null}{store.whatsapp_number ? <a href={`https://wa.me/${store.whatsapp_number}`}>WhatsApp: +{store.whatsapp_number}</a> : null}{footer.email ? <a href={`mailto:${footer.email}`}>{footer.email}</a> : null}{footer.address ? <p>{footer.address}</p> : null}</div> : null}
+    </div>
+    <div className="sf-footer-bottom"><span>© {new Date().getFullYear()} {store.name}. Todos os direitos reservados.</span>{footer.show_platform_credit ? <span>Desenvolvido por <strong>VOID Startup</strong></span> : null}</div>
+  </footer>;
+}
+
+export function Storefront({ store, filters, basePath = store.domain ? "/" : `/${store.slug}` }: Props) {
+  const config = store.storefront_config;
+  const active = filters ?? { page: 1, categoryId: null, availability: null, totalPages: 1 };
+  const availableSections = config.section_order.length ? config.section_order : ["categories", "featured", "catalog", "about", "contact"] as const;
+  const navLinks = [
+    ...(config.navigation.show_home_link ? [{ key: "home", label: "Início", href: "#inicio" }] : []),
+    ...(config.navigation.show_category_links && config.sections.categories.enabled ? [{ key: "categories", label: "Categorias", href: "#categorias" }] : []),
+    ...(config.navigation.show_featured_link && config.sections.featured.enabled ? [{ key: "featured", label: "Destaques", href: "#destaques" }] : []),
+    ...(config.navigation.show_about_link && config.sections.about.enabled ? [{ key: "about", label: "Sobre", href: "#sobre" }] : []),
+    ...(config.navigation.show_contact_link && config.sections.contact.enabled ? [{ key: "contact", label: "Contato", href: "#contato" }] : []),
+  ];
+  const cartProducts = [...new Map([...store.featured_products, ...store.products].map((product) => [product.id, product])).values()];
+  const brandStyle = { "--store-primary": store.primary_color, "--store-secondary": store.secondary_color, "--catalog-columns": config.sections.catalog.columns } as CSSProperties;
+  const themeClass = `theme-${store.storefront_template}`;
+  return <main className={`storefront-v2 ${themeClass}`} style={brandStyle}>
+    <header className="sf-header"><a className="sf-brand" href="#inicio" aria-label={`Início: ${store.name}`}>{store.logo_url ? <Image className="sf-logo" src={store.logo_url} alt="" width={150} height={56} /> : <span className="sf-logo-fallback">{store.name.slice(0, 1)}</span>}<strong>{store.name}</strong></a><nav className="sf-nav" aria-label="Navegação principal">{navLinks.map((link) => <a key={link.key} href={link.href}>{link.label}</a>)}</nav>{config.navigation.show_whatsapp_cta ? <a className="sf-header-contact" href={store.whatsapp_number ? `https://wa.me/${store.whatsapp_number}` : "#contato"}>Atendimento <span>↗</span></a> : null}</header>
+    <Hero store={store} config={config} />
+    {availableSections.map((id) => <SectionContent key={id} id={id} store={store} config={config} filters={active} basePath={basePath} />)}
+    <StoreFooter store={store} config={config} basePath={basePath} />
+    {store.whatsapp_number ? <a className="sf-floating-whatsapp" href={`https://wa.me/${store.whatsapp_number}`} aria-label="Fale com a loja pelo WhatsApp" target="_blank" rel="noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 11.7a8.1 8.1 0 0 1-11.95 7.1L4 20l1.25-4.08a8.1 8.1 0 1 1 14.95-4.22Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M9 8.6c.2-.45.4-.47.7-.47h.44c.15 0 .35.04.5.4l.63 1.5c.08.2.08.36-.05.54l-.46.56c-.14.16-.28.34-.12.62.16.29.72 1.18 1.55 1.91.97.86 1.8 1.12 2.1 1.25.3.13.48.11.65-.1l.76-.91c.19-.23.38-.25.64-.15l1.54.73c.25.12.42.18.48.29.06.1.06.59-.15 1.16-.2.57-1.2 1.12-1.66 1.18-.43.07-.98.1-1.58-.09-.36-.11-.82-.26-1.4-.52-2.46-1.07-4.07-3.57-4.2-3.74-.12-.17-.99-1.31-.99-2.5 0-1.2.63-1.77.85-2.01Z" fill="currentColor"/></svg></a> : null}
+    <StoreCart storeName={store.name} storeKey={store.id} whatsapp={store.whatsapp_number} products={cartProducts} template={store.storefront_template} />
+  </main>;
 }
