@@ -19,3 +19,7 @@ test("custom-domain storefront has a shareable product-detail route", () => {
     "the production build must include /produto/{product} for a custom domain",
   );
 });
+
+test("Food QR tool has a dedicated dashboard route", () => {
+  assert.ok(manifest["/dashboard/qr-code/page"], "the production build must include /dashboard/qr-code");
+});

@@ -14,6 +14,7 @@ export function DashboardNav({ tenantSlug, storeName, tenantType = "retail", ten
     { href: "/dashboard/products", label: labels.items, icon: "▧" },
     { href: "/dashboard/categories", label: "Categorias", icon: "◫" },
     { href: "/dashboard/settings", label: "Configurações", icon: "⚙" },
+    ...(tenantType === "food" ? [{ href: "/dashboard/qr-code", label: "QR code da loja", icon: "▦" }] : []),
   ];
   const storeHref = tenantSlug ? `/${tenantSlug}` : "/dashboard/setup-needed";
   return (
