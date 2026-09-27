@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireTenant } from "@/lib/access";
 import { isTenantAssetUrl } from "@/lib/assets";
+import { getRemovedGalleryPaths } from "@/lib/tenant-assets";
 import { firstIssue, type ActionState } from "@/lib/actions";
 import { formBoolean, formText, productSchemaForTenant, categorySchema, tenantSettingsSchema, slugify } from "@/lib/validation";
 import { parsePriceInput } from "@/lib/input-formatting";
+import { normalizeStorefrontConfig } from "@/lib/storefront-config";
 
 const uuidSchema = z.string().uuid();
 
@@ -172,6 +174,7 @@ export async function toggleCategoryAction(formData: FormData) {
 
 export async function saveSettingsAction(_state: ActionState, formData: FormData): Promise<ActionState> {
   const { supabase, tenant } = await requireTenant();
+  const previousGalleryUrls = normalizeStorefrontConfig(tenant.storefront_config).sections.gallery.image_urls;
   const rawWhatsApp = formText(formData, "whatsapp_number").trim();
   let rawConfig = formText(formData, "storefront_config");
   try {
@@ -195,6 +198,9 @@ export async function saveSettingsAction(_state: ActionState, formData: FormData
   if (storefrontConfig.sections.about.image_url && !isTenantAssetUrl(storefrontConfig.sections.about.image_url, tenant.id, "about")) {
     return { error: "A imagem da seção Sobre não pertence ao armazenamento desta loja." };
   }
+  if (!storefrontConfig.sections.gallery.image_urls.every((url) => isTenantAssetUrl(url, tenant.id, "gallery"))) {
+    return { error: "Uma das imagens da galeria não pertence ao armazenamento desta loja." };
+  }
   const { error } = await supabase.from("tenants").update({
     name: parsed.data.name,
     storefront_template: parsed.data.storefront_template,
@@ -203,6 +209,20 @@ export async function saveSettingsAction(_state: ActionState, formData: FormData
     logo_url: logoUrl,
   }).eq("id", tenant.id);
   if (error) return { error: "Não foi possível salvar as configurações." };
+
+  const removedGalleryPaths = getRemovedGalleryPaths(
+    previousGalleryUrls,
+    storefrontConfig.sections.gallery.image_urls,
+    tenant.id,
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+  );
+  if (removedGalleryPaths.length) {
+    try {
+      await supabase.storage.from("store-assets").remove(removedGalleryPaths);
+    } catch {
+      // A committed settings update stays successful if Storage cleanup is unavailable.
+    }
+  }
 
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard");

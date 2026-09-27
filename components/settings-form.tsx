@@ -32,10 +32,15 @@ export function SettingsForm({ tenant }: { tenant: Tenant }) {
       const bannerFiles = formData.getAll("banner_images").filter((file): file is File => file instanceof File && file.size > 0);
       const aboutFile = formData.get("about_image");
       const aboutFiles = aboutFile instanceof File && aboutFile.size ? [aboutFile] : [];
+      const galleryFiles = tenant.tenant_type === "services"
+        ? formData.getAll("gallery_images").filter((file): file is File => file instanceof File && file.size > 0)
+        : [];
       const maxBanners = 8 - nextConfig.hero.image_urls.length;
+      const maxGalleryImages = 8 - nextConfig.sections.gallery.image_urls.length;
       if (bannerFiles.length > maxBanners) return { error: `Mantenha no máximo 8 imagens no banner. Você já tem ${nextConfig.hero.image_urls.length}.` };
+      if (galleryFiles.length > maxGalleryImages) return { error: `Mantenha no máximo 8 fotos na galeria. Você já tem ${nextConfig.sections.gallery.image_urls.length}.` };
 
-      const supabase = (logoFiles.length || bannerFiles.length || aboutFiles.length) ? createSupabaseBrowserClient() : null;
+      const supabase = (logoFiles.length || bannerFiles.length || aboutFiles.length || galleryFiles.length) ? createSupabaseBrowserClient() : null;
       let logoUrl = String(formData.get("logo_url") ?? "");
       if (logoFiles.length && supabase) {
         setUploadStatus("Enviando logo ao Supabase…");
@@ -64,12 +69,23 @@ export function SettingsForm({ tenant }: { tenant: Tenant }) {
         uploadedPaths.push(...uploaded.paths);
         nextConfig.sections.about.image_url = uploaded.urls[0] ?? null;
       }
+      if (galleryFiles.length && supabase) {
+        setUploadStatus(`Enviando ${galleryFiles.length} foto${galleryFiles.length === 1 ? "" : "s"} da galeria…`);
+        const uploaded = await uploadTenantImages(supabase, galleryFiles, tenant.id, "gallery", maxGalleryImages);
+        if (uploaded.error) {
+          if (uploadedPaths.length) await supabase.storage.from("store-assets").remove(uploadedPaths);
+          return { error: uploaded.error };
+        }
+        uploadedPaths.push(...uploaded.paths);
+        nextConfig.sections.gallery.image_urls = [...nextConfig.sections.gallery.image_urls, ...uploaded.urls];
+      }
 
       formData.set("storefront_config", JSON.stringify(nextConfig));
       formData.set("logo_url", logoUrl);
       formData.delete("logo");
       formData.delete("banner_images");
       formData.delete("about_image");
+      formData.delete("gallery_images");
       const result = await saveSettingsAction(previous, formData);
       if (result.error && uploadedPaths.length && supabase) await supabase.storage.from("store-assets").remove(uploadedPaths);
       return result;
@@ -104,6 +120,13 @@ export function SettingsForm({ tenant }: { tenant: Tenant }) {
     }
     return { ...current, section_order: order };
   });
+  const moveGalleryImage = (index: number, delta: number) => setConfig((current) => {
+    const image_urls = [...current.sections.gallery.image_urls];
+    const target = Math.max(0, Math.min(image_urls.length - 1, index + delta));
+    if (target === index) return current;
+    [image_urls[index], image_urls[target]] = [image_urls[target], image_urls[index]];
+    return { ...current, sections: { ...current.sections, gallery: { ...current.sections.gallery, image_urls } } };
+  });
   return <form action={action} className="panel editor-form settings-form-v2" encType="multipart/form-data">
     <div className="form-section-heading"><span className="step-number">01</span><div><strong>Identidade da loja</strong><p>Como seus clientes reconhecem a sua marca.</p></div></div>
     <label className="field"><span>Nome da loja</span><input name="name" minLength={2} maxLength={80} required defaultValue={tenant.name} /></label>
@@ -130,6 +153,19 @@ export function SettingsForm({ tenant }: { tenant: Tenant }) {
       const section = config.sections[key];
       return <div className="settings-section-row" key={key}><span className="settings-order">{String(index + 1).padStart(2, "0")}</span><div className="settings-section-main"><strong>{sectionNames[key]}</strong><label className="settings-section-title"><span>Título</span><input value={section.title} maxLength={80} onChange={(event) => updateSection(key, { title: event.target.value } as never)} /></label></div><label className="settings-visible"><input type="checkbox" checked={section.enabled} onChange={(event) => updateSection(key, { enabled: event.target.checked } as never)} /> Exibir</label><div className="settings-order-actions"><button type="button" disabled={index === 0} onClick={() => moveSection(key, -1)} aria-label={`Mover ${sectionNames[key]} para cima`}>↑</button><button type="button" disabled={index === visibleSectionOrder.length - 1} onClick={() => moveSection(key, 1)} aria-label={`Mover ${sectionNames[key]} para baixo`}>↓</button></div></div>;
     })}</div>
+    {tenant.tenant_type === "services" ? <>
+      <div className="form-section-heading"><div><strong>Fotos da galeria</strong><p>Mostre o espaço, a equipe ou trabalhos da empresa. A ordem abaixo será usada na vitrine.</p></div></div>
+      {config.sections.gallery.image_urls.length ? <div className="settings-image-list">{config.sections.gallery.image_urls.map((url, index) => <div key={`${url}-${index}`}>
+        <Image src={url} alt={`Foto da galeria ${index + 1}`} width={96} height={68} />
+        <span>Foto {index + 1}</span>
+        <div className="settings-order-actions">
+          <button type="button" disabled={index === 0} onClick={() => moveGalleryImage(index, -1)} aria-label={`Mover foto ${index + 1} para cima`}>↑</button>
+          <button type="button" disabled={index === config.sections.gallery.image_urls.length - 1} onClick={() => moveGalleryImage(index, 1)} aria-label={`Mover foto ${index + 1} para baixo`}>↓</button>
+          <button type="button" onClick={() => updateSection("gallery", { image_urls: config.sections.gallery.image_urls.filter((_, itemIndex) => itemIndex !== index) })} aria-label={`Remover foto ${index + 1}`}>×</button>
+        </div>
+      </div>)}</div> : <p className="settings-gallery-empty">Nenhuma foto adicionada ainda.</p>}
+      <label className="field file-field"><span>Adicionar fotos</span><input name="gallery_images" type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple disabled={config.sections.gallery.image_urls.length >= 8} /><small>JPG, PNG, WebP ou AVIF · até 5 MB por foto · até 8 no total. Você pode selecionar vários arquivos; eles entram na ordem escolhida.</small></label>
+    </> : null}
     <div className="form-row"><label className="field"><span>Produtos por linha</span><select value={config.sections.catalog.columns} onChange={(event) => updateSection("catalog", { columns: Number(event.target.value) as 2 | 3 | 4 | 5 })}><option value={2}>2 produtos</option><option value={3}>3 produtos</option><option value={4}>4 produtos</option><option value={5}>5 produtos</option></select></label><label className="field"><span>Layout dos destaques</span><select value={config.sections.featured.layout} onChange={(event) => updateSection("featured", { layout: event.target.value as "cards" | "banners" })}><option value="cards">Cards de produto</option><option value="banners">Mini banners</option></select></label></div>
     <label className="field"><span>Texto da seção “Sobre a loja”</span><textarea rows={4} maxLength={3000} value={config.sections.about.text} onChange={(event) => updateSection("about", { text: event.target.value })} placeholder="Conte um pouco sobre a empresa e os produtos…" /></label>
     {config.sections.about.image_url ? <div className="settings-image-list"><div><Image src={config.sections.about.image_url} alt="Imagem da seção sobre" width={90} height={60} /><span>Imagem atual</span><button type="button" onClick={() => updateSection("about", { image_url: null })}>Remover</button></div></div> : null}

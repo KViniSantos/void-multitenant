@@ -10,7 +10,7 @@ const imageExtensions: Record<string, string> = {
   "image/avif": "avif",
 };
 
-type AssetFolder = "logo" | "products" | "banners" | "about";
+type AssetFolder = "logo" | "products" | "banners" | "about" | "gallery";
 
 async function detectedImageType(file: File) {
   const bytes = new Uint8Array(await file.slice(0, 32).arrayBuffer());

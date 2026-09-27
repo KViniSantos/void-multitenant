@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import { getTenantAssetPath, type TenantAssetFolder } from "./tenant-assets.ts";
 
 const allowedTypes: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -10,21 +11,10 @@ const allowedTypes: Record<string, string> = {
   "image/avif": "avif",
 };
 
-export function isTenantAssetUrl(url: string, tenantId: string, folder: "logo" | "products" | "banners" | "about") {
+export function isTenantAssetUrl(url: string, tenantId: string, folder: TenantAssetFolder) {
   const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!configuredUrl) return false;
-  try {
-    const asset = new URL(url);
-    const supabase = new URL(configuredUrl);
-    const folderPrefix = `/storage/v1/object/public/store-assets/${tenantId}/${folder}/`;
-    return asset.origin === supabase.origin
-      && asset.pathname.startsWith(folderPrefix)
-      && asset.pathname.length > folderPrefix.length
-      && !asset.search
-      && !asset.hash;
-  } catch {
-    return false;
-  }
+  return getTenantAssetPath(url, tenantId, folder, configuredUrl) !== null;
 }
 
 async function detectImageType(file: File) {
@@ -41,7 +31,7 @@ export async function uploadTenantAsset(
   supabase: SupabaseClient<Database>,
   file: FormDataEntryValue | null,
   tenantId: string,
-  folder: "logo" | "products" | "banners" | "about",
+  folder: TenantAssetFolder,
 ) {
   if (!(file instanceof File) || file.size === 0) return { url: null, path: null, error: null };
   if (!allowedTypes[file.type]) {
