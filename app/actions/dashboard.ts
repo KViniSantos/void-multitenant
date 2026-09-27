@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireTenant } from "@/lib/access";
 import { isTenantAssetUrl } from "@/lib/assets";
 import { firstIssue, type ActionState } from "@/lib/actions";
-import { formBoolean, formText, productSchema, categorySchema, tenantSettingsSchema, slugify } from "@/lib/validation";
+import { formBoolean, formText, productSchemaForTenant, categorySchema, tenantSettingsSchema, slugify } from "@/lib/validation";
 import { parsePriceInput } from "@/lib/input-formatting";
 
 const uuidSchema = z.string().uuid();
@@ -22,11 +22,16 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
   let attributes: unknown;
   try { attributes = JSON.parse(formText(formData, "attributes")); }
   catch { return { error: "Os atributos do produto estão inválidos." }; }
-  const parsed = productSchema.safeParse({
+  const price = parsePriceInput(formText(formData, "price"));
+  const pricingMode = formText(formData, "pricing_mode") || "fixed";
+  const cardPrice = tenant.tenant_type === "retail" ? parsePriceInput(formText(formData, "card_price"))
+    : tenant.tenant_type === "food" ? price : null;
+  const parsed = productSchemaForTenant(tenant.tenant_type).safeParse({
     name: formText(formData, "name"),
     description: formText(formData, "description"),
-    price: parsePriceInput(formText(formData, "price")),
-    card_price: parsePriceInput(formText(formData, "card_price")),
+    price,
+    card_price: cardPrice,
+    pricing_mode: pricingMode,
     category_id: formText(formData, "category_id") || null,
     active: formBoolean(formData.get("active")),
     availability: formText(formData, "availability"),
@@ -77,6 +82,7 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
     description: parsed.data.description,
     price: parsed.data.price,
     card_price: parsed.data.card_price,
+    pricing_mode: parsed.data.pricing_mode,
     image_url: imageUrls[0] ?? null,
     image_urls: imageUrls,
     availability: parsed.data.availability,

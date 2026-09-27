@@ -7,5 +7,7 @@ export const metadata = { title: "Adicionar produto" };
 export default async function NewProductPage() {
   const { supabase, tenant } = await requireTenant();
   const { data } = await supabase.from("categories").select("id,name,active").eq("tenant_id", tenant.id).order("name");
-  return <main className="dashboard-content editor-page"><div className="breadcrumbs"><Link href="/dashboard/products">Produtos</Link><span>/</span><span>Adicionar produto</span></div><div className="page-heading compact-heading"><div><span className="eyebrow eyebrow-dark">UM NOVO FAVORITO</span><h1>Adicionar produto<span className="heading-period">.</span></h1><p>Os campos com * ajudam a deixar seu catálogo mais claro.</p></div></div><ProductForm tenantId={tenant.id} categories={data ?? []} /></main>;
+  const singular = tenant.tenant_type === "food" ? "item do cardápio" : tenant.tenant_type === "services" ? "serviço" : "produto";
+  const createLabel = tenant.tenant_type === "food" ? "Adicionar item" : tenant.tenant_type === "services" ? "Adicionar serviço" : "Adicionar produto";
+  return <main className="dashboard-content editor-page"><div className="breadcrumbs"><Link href="/dashboard/products">{tenant.tenant_type === "food" ? "Cardápio" : tenant.tenant_type === "services" ? "Serviços" : "Produtos"}</Link><span>/</span><span>{createLabel}</span></div><div className="page-heading compact-heading"><div><span className="eyebrow eyebrow-dark">NOVO {singular.toLocaleUpperCase("pt-BR")}</span><h1>{createLabel}<span className="heading-period">.</span></h1><p>Preencha os detalhes que seus clientes precisam para decidir.</p></div></div><ProductForm tenantId={tenant.id} tenantType={tenant.tenant_type} categories={data ?? []} /></main>;
 }

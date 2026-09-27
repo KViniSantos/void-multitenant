@@ -34,6 +34,7 @@ export async function createTenantAction(_state: ActionState, formData: FormData
     owner_email: formText(formData, "owner_email"),
     domain: formText(formData, "domain"),
     whatsapp_number: formText(formData, "whatsapp_number"),
+    tenant_type: formText(formData, "tenant_type") || "retail",
     storefront_template: formText(formData, "storefront_template") || "essentials",
   });
   if (!parsed.success) return { error: firstIssue(parsed.error.issues) };
@@ -52,6 +53,7 @@ export async function createTenantAction(_state: ActionState, formData: FormData
       slug: parsed.data.slug,
       domain: parsed.data.domain,
       whatsapp_number: parsed.data.whatsapp_number,
+      tenant_type: parsed.data.tenant_type,
       storefront_template: parsed.data.storefront_template,
       active: true,
       primary_color: "#183F36",
@@ -89,8 +91,9 @@ export async function updateTenantAction(_state: ActionState, formData: FormData
     email: z.string().email(),
     domain: z.string().max(253).regex(/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/).nullable(),
     whatsapp: z.string().max(15).nullable(),
+    tenant_type: z.enum(["retail", "food", "services"]),
     storefront_template: z.enum(["technology", "nature", "sports", "essentials"]),
-  }).safeParse({ name, slug, email, domain, whatsapp, storefront_template: formText(formData, "storefront_template") });
+  }).safeParse({ name, slug, email, domain, whatsapp, tenant_type: formText(formData, "tenant_type"), storefront_template: formText(formData, "storefront_template") });
   if (!errors.success) return { error: firstIssue(errors.error.issues) };
 
   try {
@@ -99,12 +102,14 @@ export async function updateTenantAction(_state: ActionState, formData: FormData
     if (logo.error) return { error: logo.error };
     const { error } = await supabase.from("tenants").update({
       name, slug, owner_id: owner.id, domain, whatsapp_number: whatsapp,
+      tenant_type: errors.data.tenant_type,
       storefront_template: errors.data.storefront_template,
       active: formBoolean(formData.get("active")),
       ...(logo.url ? { logo_url: logo.url } : {}),
     }).eq("id", id.data);
     if (error && logo.path) await createSupabaseAdminClient().storage.from("store-assets").remove([logo.path]);
     if (error?.code === "23505") return { error: "Esse slug ou domínio já está em uso." };
+    if (error?.code === "23514") return { error: "Antes de trocar o tipo, converta os itens incompatíveis com o novo negócio." };
     if (error) return { error: "Não foi possível atualizar a loja." };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Não foi possível atualizar a loja." };

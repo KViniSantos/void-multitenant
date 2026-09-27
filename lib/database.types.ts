@@ -22,6 +22,8 @@ export type Profile = {
 };
 
 export type StorefrontTemplate = "technology" | "nature" | "sports" | "essentials";
+export type TenantType = "retail" | "food" | "services";
+export type PricingMode = "fixed" | "starting_at" | "quote";
 export type StorefrontFont = "montserrat" | "inter" | "roboto" | "lora" | "playfair";
 export type ProductAvailability = "in_stock" | "preorder" | "sold_out";
 export type ProductCondition = "new" | "used" | "refurbished";
@@ -111,6 +113,7 @@ export type Tenant = {
   primary_color: string;
   secondary_color: string;
   whatsapp_number: string | null;
+  tenant_type: TenantType;
   storefront_template: StorefrontTemplate;
   storefront_config: StorefrontConfig;
   active: boolean;
@@ -118,7 +121,7 @@ export type Tenant = {
   updated_at: string;
 };
 
-export type TenantSummary = Pick<Tenant, "id" | "name" | "slug" | "domain" | "logo_url" | "active" | "created_at">;
+export type TenantSummary = Pick<Tenant, "id" | "name" | "slug" | "domain" | "logo_url" | "tenant_type" | "active" | "created_at">;
 
 export type Category = {
   id: string;
@@ -137,8 +140,9 @@ export type Product = {
   name: string;
   slug: string;
   description: string;
-  price: number;
-  card_price: number;
+  price: number | null;
+  card_price: number | null;
+  pricing_mode: PricingMode;
   image_url: string | null;
   image_urls: string[];
   availability: ProductAvailability;
@@ -163,6 +167,7 @@ export type StorefrontProduct = Pick<
   | "description"
   | "price"
   | "card_price"
+  | "pricing_mode"
   | "image_url"
   | "image_urls"
   | "availability"
@@ -175,7 +180,7 @@ export type StorefrontProduct = Pick<
 
 export type StorefrontBrand = Pick<
   Tenant,
-  "id" | "name" | "slug" | "domain" | "logo_url" | "storefront_template" | "storefront_config" | "whatsapp_number" | "primary_color" | "secondary_color"
+  "id" | "name" | "slug" | "domain" | "logo_url" | "tenant_type" | "storefront_template" | "storefront_config" | "whatsapp_number" | "primary_color" | "secondary_color"
 >;
 
 export type PublicStorefront = StorefrontBrand & {
@@ -197,9 +202,9 @@ export type Database = {
   public: {
     Tables: {
       profiles: Table<Profile, Defaulted<Profile, "platform_role" | "created_at" | "updated_at">>;
-      tenants: Table<Tenant, Defaulted<Tenant, "id" | "logo_url" | "primary_color" | "secondary_color" | "whatsapp_number" | "storefront_template" | "storefront_config" | "active" | "created_at" | "updated_at">>;
+      tenants: Table<Tenant, Defaulted<Tenant, "id" | "logo_url" | "primary_color" | "secondary_color" | "whatsapp_number" | "tenant_type" | "storefront_template" | "storefront_config" | "active" | "created_at" | "updated_at">>;
       categories: Table<Category, Defaulted<Category, "id" | "created_at" | "updated_at">>;
-      products: Table<Product, Defaulted<Product, "id" | "card_price" | "attributes" | "image_url" | "image_urls" | "availability" | "product_condition" | "stock_quantity" | "featured" | "highlights" | "detail_sections" | "active" | "created_at" | "updated_at">>;
+      products: Table<Product, Defaulted<Product, "id" | "card_price" | "pricing_mode" | "attributes" | "image_url" | "image_urls" | "availability" | "product_condition" | "stock_quantity" | "featured" | "highlights" | "detail_sections" | "active" | "created_at" | "updated_at">>;
       product_daily_metrics: Table<
         { tenant_id: string; product_id: string; metric_date: string; views: number },
         { tenant_id: string; product_id: string; metric_date: string; views?: number }

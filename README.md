@@ -36,6 +36,8 @@ No painel do projeto Supabase:
 
 ## Deploy
 
+Esta versão adiciona as migrations `202609270002_multi_vertical_storefront.sql`, `202609270003_platform_managed_tenant_types.sql` e `202609270004_security_definer_pricing_validation.sql`. Revise a prévia do Supabase antes de aplicá-las.
+
 1. Antes de publicar código que dependa de migrations novas, conecte o Supabase e aplique-as:
 
    ```bash
@@ -70,6 +72,8 @@ O domínio precisa estar associado ao projeto Vercel além de ser salvo no tenan
 - `npm run lint` verifica regras do ESLint.
 - `npx tsc --noEmit` verifica os tipos TypeScript.
 - `npm run build` cria o build de produção.
+- `npx supabase test db` verifica RLS e fluxos multi-tenant em fixtures transacionais.
+- `node --test tests/input-formatting.test.mjs tests/vertical-catalog.test.mjs` verifica máscaras, preços e mensagens para WhatsApp.
 
 ## Fluxo do MVP
 
@@ -78,6 +82,18 @@ O domínio precisa estar associado ao projeto Vercel além de ser salvo no tenan
 - Prévia local: `/<slug>`.
 - Loja em domínio próprio: `/` do hostname cadastrado.
 - O visitante filtra categorias, monta o carrinho e abre `wa.me` com os produtos, quantidades, subtotais e total.
+
+## Tipos de negócio e catálogo
+
+O administrador da plataforma cria cada loja em `/admin/tenants/new` e escolhe o tipo do negócio separadamente do template visual:
+
+- **Retail:** vitrine de produtos, preço no Pix e no cartão, carrinho compartilhado e finalização pelo WhatsApp.
+- **Food:** cardápio com preço único, opções configuráveis por item, pedido com quantidade e subtotal por item, enviado ao WhatsApp.
+- **Services:** catálogo de serviços com preço fixo, valor inicial ou consulta de orçamento; cada serviço abre uma conversa própria no WhatsApp e não mostra carrinho.
+
+O lojista pode editar banner, seções visíveis e ordem, categorias, destaques, grade, fonte e informações de rodapé em `/dashboard/settings`. Os campos de disponibilidade e detalhes de cada item variam conforme o tipo do negócio.
+
+Para conferir os três fluxos localmente, crie lojas de teste pela área `/admin` e selecione Retail, Food e Services. Os testes do banco usam os tenants de demonstração **João Tech**, **Burger Test** e **Barber Test** dentro de uma transação revertida; esses registros nunca são gravados no projeto de produção. Domínios personalizados ainda precisam ser associados ao projeto Vercel e configurados no DNS antes de ficarem disponíveis.
 
 ## Limites atuais
 

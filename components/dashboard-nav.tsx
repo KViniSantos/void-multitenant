@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOutAction } from "@/app/actions/auth";
-import type { Tenant } from "@/lib/database.types";
+import type { Tenant, TenantType } from "@/lib/database.types";
+import { getVerticalLabels } from "@/lib/verticals";
 
-const links = [
-  { href: "/dashboard", label: "Visão geral", icon: "⌂", exact: true },
-  { href: "/dashboard/products", label: "Produtos", icon: "▧" },
-  { href: "/dashboard/categories", label: "Categorias", icon: "◫" },
-  { href: "/dashboard/settings", label: "Configurações", icon: "⚙" },
-];
-
-export function DashboardNav({ tenantSlug, storeName, tenants = [], platformAdmin = false }: { tenantSlug?: string; storeName?: string; tenants?: Pick<Tenant, "id" | "name">[]; platformAdmin?: boolean }) {
+export function DashboardNav({ tenantSlug, storeName, tenantType = "retail", tenants = [], platformAdmin = false }: { tenantSlug?: string; storeName?: string; tenantType?: TenantType; tenants?: Pick<Tenant, "id" | "name">[]; platformAdmin?: boolean }) {
   const pathname = usePathname();
+  const labels = getVerticalLabels(tenantType);
+  const links = [
+    { href: "/dashboard", label: "Visão geral", icon: "⌂", exact: true },
+    { href: "/dashboard/products", label: labels.items, icon: "▧" },
+    { href: "/dashboard/categories", label: "Categorias", icon: "◫" },
+    { href: "/dashboard/settings", label: "Configurações", icon: "⚙" },
+  ];
   const storeHref = tenantSlug ? `/${tenantSlug}` : "/dashboard/setup-needed";
   return (
     <aside className="dashboard-sidebar">

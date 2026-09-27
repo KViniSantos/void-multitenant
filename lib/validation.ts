@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { StorefrontConfig } from "@/lib/database.types";
+import type { StorefrontConfig, TenantType } from "@/lib/database.types";
 
 export const slugify = (value: string) =>
   value
@@ -84,8 +84,9 @@ export const tenantSettingsSchema = z.object({
 export const productSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do produto.").max(100),
   description: z.string().trim().max(2000).default(""),
-  price: z.number().finite().min(0, "O preço não pode ser negativo.").max(999999999),
-  card_price: z.number().finite().min(0, "O preço no cartão não pode ser negativo.").max(999999999),
+  price: z.number().finite().min(0, "O preço não pode ser negativo.").max(999999999).nullable(),
+  card_price: z.number().finite().min(0, "O preço no cartão não pode ser negativo.").max(999999999).nullable(),
+  pricing_mode: z.enum(["fixed", "starting_at", "quote"]),
   category_id: z.string().uuid().nullable(),
   active: z.boolean(),
   availability: z.enum(["in_stock", "preorder", "sold_out"]),
@@ -105,6 +106,36 @@ export const productSchema = z.object({
     .refine((items) => items.every((item) => new Set(item.values.map((value) => value.toLocaleLowerCase("pt-BR"))).size === item.values.length), "Remova valores repetidos dentro de um atributo."),
 });
 
+export function productSchemaForTenant(tenantType: TenantType) {
+  return productSchema.superRefine((product, context) => {
+    if (tenantType === "services") {
+      if (product.pricing_mode === "quote") {
+        if (product.price !== null || product.card_price !== null) {
+          context.addIssue({ code: "custom", path: ["price"], message: "Serviços sob consulta não devem informar um preço numérico." });
+        }
+      } else {
+        if (product.price === null) {
+          context.addIssue({ code: "custom", path: ["price"], message: "Informe o preço do serviço." });
+        }
+        if (product.card_price !== null) {
+          context.addIssue({ code: "custom", path: ["card_price"], message: "Serviços não usam preço de cartão separado." });
+        }
+      }
+      return;
+    }
+
+    if (product.pricing_mode !== "fixed") {
+      context.addIssue({ code: "custom", path: ["pricing_mode"], message: "Produtos e itens do cardápio precisam de preço fixo." });
+    }
+    if (product.price === null) {
+      context.addIssue({ code: "custom", path: ["price"], message: "Informe o preço." });
+    }
+    if (product.card_price === null) {
+      context.addIssue({ code: "custom", path: ["card_price"], message: "Informe o preço no cartão." });
+    }
+  });
+}
+
 export const categorySchema = z.object({
   name: z.string().trim().min(2, "Informe o nome da categoria.").max(60),
   active: z.boolean(),
@@ -117,8 +148,13 @@ export const tenantCreateSchema = z.object({
   owner_email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
   domain: domainSchema,
   whatsapp_number: whatsappSchema,
+  tenant_type: z.enum(["retail", "food", "services"]).default("retail"),
   storefront_template: z.enum(["technology", "nature", "sports", "essentials"]).default("essentials"),
 });
+
+export function tenantTypeLabel(tenantType: TenantType) {
+  return tenantType === "food" ? "Food" : tenantType === "services" ? "Services" : "Retail";
+}
 
 export function formBoolean(value: FormDataEntryValue | null) {
   return value === "on" || value === "true";

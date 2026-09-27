@@ -1,5 +1,5 @@
 begin;
-select plan(8);
+select plan(10);
 
 select has_column('public', 'tenants', 'storefront_template', 'tenants store a curated template choice');
 select has_column('public', 'tenants', 'storefront_config', 'store owners can configure sections and footer details');
@@ -9,6 +9,8 @@ select has_column('public', 'products', 'featured', 'products can be featured on
 select has_function('public', 'get_public_storefront_by_slug_page', array['text', 'integer', 'integer', 'uuid', 'text'], 'public catalog is paginated and filterable');
 select has_function('public', 'increment_product_view', array['uuid', 'uuid'], 'product page views can be aggregated');
 select has_function('public', 'get_platform_product_metrics', array['date'], 'platform administrators can review aggregate product traffic');
+select has_column('public', 'tenants', 'tenant_type', 'tenants declare the business vertical');
+select has_column('public', 'products', 'pricing_mode', 'catalog entries declare how their price is presented');
 
 select * from finish();
 rollback;

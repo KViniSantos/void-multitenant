@@ -7,6 +7,7 @@ import { DEFAULT_STOREFRONT_CONFIG, type PublicProductDetail, type PublicStorefr
 
 export const PUBLIC_CATALOG_PAGE_SIZE = 24;
 const templateSchema = z.enum(["technology", "nature", "sports", "essentials"]);
+const tenantTypeSchema = z.enum(["retail", "food", "services"]);
 const sectionKeySchema = z.enum(["categories", "featured", "catalog", "about", "contact"]);
 const storefrontConfigSchema = z.object({
   font_family: z.enum(["montserrat", "inter", "roboto", "lora", "playfair"]).default("montserrat"),
@@ -32,7 +33,8 @@ const storefrontConfigSchema = z.object({
 
 const storefrontProductSchema = z.object({
   id: z.string().uuid(), category_id: z.string().uuid().nullable(), category_name: z.string().nullable(),
-  name: z.string(), slug: z.string(), description: z.string(), price: z.number(), card_price: z.number(), image_url: z.string().nullable(),
+  name: z.string(), slug: z.string(), description: z.string(), price: z.number().nullable(), card_price: z.number().nullable(),
+  pricing_mode: z.enum(["fixed", "starting_at", "quote"]), image_url: z.string().nullable(),
   image_urls: z.array(z.string()), availability: z.enum(["in_stock", "preorder", "sold_out"]),
   product_condition: z.enum(["new", "used", "refurbished"]), stock_quantity: z.number().int().nullable(),
   featured: z.boolean(), highlights: z.array(z.string()),
@@ -41,7 +43,7 @@ const storefrontProductSchema = z.object({
 
 const storeBrandSchema = z.object({
   id: z.string().uuid(), name: z.string(), slug: z.string(), domain: z.string().nullable(), logo_url: z.string().nullable(),
-  primary_color: z.string(), secondary_color: z.string(),
+  primary_color: z.string(), secondary_color: z.string(), tenant_type: tenantTypeSchema,
   storefront_template: templateSchema, whatsapp_number: z.string().nullable(),
   storefront_config: storefrontConfigSchema,
 });

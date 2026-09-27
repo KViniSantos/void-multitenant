@@ -27,7 +27,7 @@ export async function getUserContext(): Promise<UserContext> {
 
   const { data: tenantData } = await supabase
     .from("tenants")
-    .select("id,name,slug,domain,logo_url,active,created_at")
+    .select("id,name,slug,domain,logo_url,tenant_type,active,created_at")
     .eq("owner_id", user.id)
     .order("created_at", { ascending: true })
     .limit(100);
