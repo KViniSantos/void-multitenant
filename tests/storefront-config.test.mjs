@@ -30,7 +30,7 @@ test("settings accept at most eight gallery images", () => {
   const makeSettings = (count) => {
     const config = structuredClone(DEFAULT_STOREFRONT_CONFIG);
     config.sections.gallery.image_urls = Array.from({ length: count }, (_, index) => `https://assets.example/${index}.webp`);
-    return { name: "Barber Test", storefront_template: "essentials", storefront_config: JSON.stringify(config), whatsapp_number: "" };
+    return { name: "Barber Test", storefront_template: "essentials", storefront_config: JSON.stringify(config), whatsapp_number: "", primary_color: "#183F36", secondary_color: "#D6ED74" };
   };
   assert.equal(tenantSettingsSchema.safeParse(makeSettings(8)).success, true);
   assert.equal(tenantSettingsSchema.safeParse(makeSettings(9)).success, false);

@@ -5,6 +5,7 @@ import {
   type StorefrontSectionKey,
   type TenantType,
 } from "./database.types.ts";
+import { richTextDocumentSchema } from "./rich-text-schema.ts";
 
 const sectionKeys = ["categories", "featured", "catalog", "about", "contact", "gallery"] as const satisfies readonly StorefrontSectionKey[];
 const sectionKeySchema = z.enum(sectionKeys);
@@ -24,6 +25,13 @@ const sectionOrderSchema = z.array(sectionKeySchema).max(sectionKeys.length)
  */
 export const storefrontConfigSchema = z.object({
   font_family: z.enum(["montserrat", "inter", "roboto", "lora", "playfair"]).default(DEFAULT_STOREFRONT_CONFIG.font_family),
+  design: z.object({
+    banner_variant: z.enum(["full-width", "split", "contained", "minimal"]).default(DEFAULT_STOREFRONT_CONFIG.design.banner_variant),
+    card_variant: z.enum(["image-top", "compact-side", "editorial", "minimal"]).default(DEFAULT_STOREFRONT_CONFIG.design.card_variant),
+    category_variant: z.enum(["chips", "image-tiles", "horizontal", "compact"]).default(DEFAULT_STOREFRONT_CONFIG.design.category_variant),
+    header_variant: z.enum(["standard", "centered"]).default(DEFAULT_STOREFRONT_CONFIG.design.header_variant),
+    footer_variant: z.enum(["columns", "compact"]).default(DEFAULT_STOREFRONT_CONFIG.design.footer_variant),
+  }).default(DEFAULT_STOREFRONT_CONFIG.design),
   navigation: z.object({
     show_home_link: z.boolean().default(DEFAULT_STOREFRONT_CONFIG.navigation.show_home_link),
     show_category_links: z.boolean().default(DEFAULT_STOREFRONT_CONFIG.navigation.show_category_links),
@@ -61,6 +69,7 @@ export const storefrontConfigSchema = z.object({
       enabled: z.boolean().default(DEFAULT_STOREFRONT_CONFIG.sections.about.enabled),
       title: z.string().trim().min(1).max(80).default(DEFAULT_STOREFRONT_CONFIG.sections.about.title),
       text: z.string().trim().max(3000).default(DEFAULT_STOREFRONT_CONFIG.sections.about.text),
+      rich_text: richTextDocumentSchema.nullable().default(DEFAULT_STOREFRONT_CONFIG.sections.about.rich_text),
       image_url: optionalUrl.nullable().default(DEFAULT_STOREFRONT_CONFIG.sections.about.image_url),
     }).default(DEFAULT_STOREFRONT_CONFIG.sections.about),
     contact: z.object({

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { type PublicProductDetail, type PublicStorefront, type StorefrontProduct } from "@/lib/database.types";
 import { normalizeStorefrontConfig } from "@/lib/storefront-config";
+import { richTextDocumentSchema } from "@/lib/rich-text-schema";
 
 export const PUBLIC_CATALOG_PAGE_SIZE = 24;
 const templateSchema = z.enum(["technology", "nature", "sports", "essentials"]);
@@ -36,6 +37,7 @@ const productDetailSchema = z.object({
   store: storeBrandSchema,
   product: storefrontProductSchema.extend({
     tenant_id: z.string().uuid(),
+    rich_description: richTextDocumentSchema.nullable(),
     detail_sections: z.array(z.object({
       title: z.string(),
       items: z.array(z.object({ label: z.string(), value: z.string() })),

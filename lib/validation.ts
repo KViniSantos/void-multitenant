@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { TenantType } from "@/lib/database.types";
 import { storefrontConfigSchema } from "./storefront-config.ts";
+import { richTextCharacterCount, richTextDocumentSchema } from "./rich-text-schema.ts";
 
 export const slugify = (value: string) =>
   value
@@ -45,11 +46,14 @@ const domainSchema = z.string().trim().max(253).transform((value, context) => {
   }
   return normalized;
 });
+const brandColorSchema = z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/, "Escolha uma cor em formato hexadecimal.");
 
 export const tenantSettingsSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome da loja.").max(80),
   storefront_template: z.enum(["technology", "nature", "sports", "essentials"]),
-  storefront_config: z.string().max(24_000).transform((value, context) => {
+  primary_color: brandColorSchema,
+  secondary_color: brandColorSchema,
+  storefront_config: z.string().max(64_000).transform((value, context) => {
     let input: unknown;
     try { input = JSON.parse(value); } catch {
       context.addIssue({ code: "custom", message: "As configurações visuais estão inválidas." });
@@ -68,6 +72,7 @@ export const tenantSettingsSchema = z.object({
 export const productSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do produto.").max(100),
   description: z.string().trim().max(2000).default(""),
+  rich_description: richTextDocumentSchema.nullable().default(null),
   price: z.number().finite().min(0, "O preço não pode ser negativo.").max(999999999).nullable(),
   card_price: z.number().finite().min(0, "O preço no cartão não pode ser negativo.").max(999999999).nullable(),
   pricing_mode: z.enum(["fixed", "starting_at", "quote"]),
@@ -92,6 +97,10 @@ export const productSchema = z.object({
 
 export function productSchemaForTenant(tenantType: TenantType) {
   return productSchema.superRefine((product, context) => {
+    const richLimit = tenantType === "food" ? 4_000 : 10_000;
+    if (richTextCharacterCount(product.rich_description) > richLimit) {
+      context.addIssue({ code: "custom", path: ["rich_description"], message: "A descrição detalhada pode ter até " + richLimit.toLocaleString("pt-BR") + " caracteres." });
+    }
     if (tenantType === "services") {
       if (product.pricing_mode === "quote") {
         if (product.price !== null || product.card_price !== null) {
@@ -128,7 +137,7 @@ export const categorySchema = z.object({
 export const tenantCreateSchema = z.object({
   name: z.string().trim().min(2).max(80),
   slug: z.string().trim().min(2).max(48).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
-    .refine((value) => !["admin", "dashboard", "login", "update-password", "auth", "_next"].includes(value), "Esse endereço é reservado pelo painel."),
+    .refine((value) => !["admin", "dashboard", "login", "update-password", "auth", "store-preview", "_next"].includes(value), "Esse endereço é reservado pelo painel."),
   owner_email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
   domain: domainSchema,
   whatsapp_number: whatsappSchema,

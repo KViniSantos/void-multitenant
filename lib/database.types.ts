@@ -1,3 +1,5 @@
+import type { RichTextDocument } from "./rich-text-schema.ts";
+
 export type Json =
   | string
   | number
@@ -30,9 +32,17 @@ export type ProductCondition = "new" | "used" | "refurbished";
 export type StorefrontSectionKey = "categories" | "featured" | "catalog" | "about" | "contact" | "gallery";
 export type ProductDetailSection = { title: string; items: { label: string; value: string }[] };
 export type ProductAttribute = { name: string; values: string[] };
+export type StorefrontDesign = {
+  banner_variant: "full-width" | "split" | "contained" | "minimal";
+  card_variant: "image-top" | "compact-side" | "editorial" | "minimal";
+  category_variant: "chips" | "image-tiles" | "horizontal" | "compact";
+  header_variant: "standard" | "centered";
+  footer_variant: "columns" | "compact";
+};
 
 export type StorefrontConfig = {
   font_family: StorefrontFont;
+  design: StorefrontDesign;
   navigation: { show_home_link: boolean; show_category_links: boolean; show_category_filters: boolean; show_featured_link: boolean; show_about_link: boolean; show_contact_link: boolean; show_whatsapp_cta: boolean; show_gallery_link: boolean };
   hero: {
     enabled: boolean;
@@ -46,7 +56,7 @@ export type StorefrontConfig = {
     categories: { enabled: boolean; title: string };
     featured: { enabled: boolean; title: string; layout: "cards" | "banners" };
     catalog: { enabled: boolean; title: string; columns: 2 | 3 | 4 | 5 };
-    about: { enabled: boolean; title: string; text: string; image_url: string | null };
+    about: { enabled: boolean; title: string; text: string; rich_text: RichTextDocument | null; image_url: string | null };
     contact: { enabled: boolean; title: string };
     gallery: { enabled: boolean; title: string; image_urls: string[] };
   };
@@ -70,6 +80,13 @@ export type StorefrontConfig = {
 
 export const DEFAULT_STOREFRONT_CONFIG: StorefrontConfig = {
   font_family: "montserrat",
+  design: {
+    banner_variant: "split",
+    card_variant: "image-top",
+    category_variant: "chips",
+    header_variant: "standard",
+    footer_variant: "columns",
+  },
   navigation: { show_home_link: true, show_category_links: true, show_category_filters: true, show_featured_link: true, show_about_link: false, show_contact_link: true, show_whatsapp_cta: true, show_gallery_link: true },
   hero: {
     enabled: true,
@@ -83,7 +100,7 @@ export const DEFAULT_STOREFRONT_CONFIG: StorefrontConfig = {
     categories: { enabled: true, title: "Categorias" },
     featured: { enabled: true, title: "Produtos em destaque", layout: "cards" },
     catalog: { enabled: true, title: "Todos os produtos", columns: 4 },
-    about: { enabled: false, title: "Sobre a loja", text: "", image_url: null },
+    about: { enabled: false, title: "Sobre a loja", text: "", rich_text: null, image_url: null },
     contact: { enabled: true, title: "Fale com a gente" },
     gallery: { enabled: false, title: "Galeria", image_urls: [] },
   },
@@ -142,6 +159,7 @@ export type Product = {
   name: string;
   slug: string;
   description: string;
+  rich_description: Json | null;
   price: number | null;
   card_price: number | null;
   pricing_mode: PricingMode;
@@ -194,7 +212,7 @@ export type PublicStorefront = StorefrontBrand & {
 
 export type PublicProductDetail = {
   store: StorefrontBrand;
-  product: StorefrontProduct & { tenant_id: string; detail_sections: ProductDetailSection[] };
+  product: StorefrontProduct & { tenant_id: string; detail_sections: ProductDetailSection[]; rich_description: Json | null };
   related_products: StorefrontProduct[];
 };
 
@@ -206,7 +224,7 @@ export type Database = {
       profiles: Table<Profile, Defaulted<Profile, "platform_role" | "created_at" | "updated_at">>;
       tenants: Table<Tenant, Defaulted<Tenant, "id" | "logo_url" | "primary_color" | "secondary_color" | "whatsapp_number" | "tenant_type" | "storefront_template" | "storefront_config" | "active" | "created_at" | "updated_at">>;
       categories: Table<Category, Defaulted<Category, "id" | "created_at" | "updated_at">>;
-      products: Table<Product, Defaulted<Product, "id" | "card_price" | "pricing_mode" | "attributes" | "image_url" | "image_urls" | "availability" | "product_condition" | "stock_quantity" | "featured" | "highlights" | "detail_sections" | "active" | "created_at" | "updated_at">>;
+      products: Table<Product, Defaulted<Product, "id" | "rich_description" | "card_price" | "pricing_mode" | "attributes" | "image_url" | "image_urls" | "availability" | "product_condition" | "stock_quantity" | "featured" | "highlights" | "detail_sections" | "active" | "created_at" | "updated_at">>;
       product_daily_metrics: Table<
         { tenant_id: string; product_id: string; metric_date: string; views: number },
         { tenant_id: string; product_id: string; metric_date: string; views?: number }

@@ -9,6 +9,7 @@ import { firstIssue, type ActionState } from "@/lib/actions";
 import { formBoolean, formText, productSchemaForTenant, categorySchema, tenantSettingsSchema, slugify } from "@/lib/validation";
 import { parsePriceInput } from "@/lib/input-formatting";
 import { normalizeStorefrontConfig } from "@/lib/storefront-config";
+import { richTextCharacterCount } from "@/lib/rich-text-schema";
 
 const uuidSchema = z.string().uuid();
 
@@ -24,6 +25,9 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
   let attributes: unknown;
   try { attributes = JSON.parse(formText(formData, "attributes")); }
   catch { return { error: "Os atributos do produto estão inválidos." }; }
+  let richDescription: unknown;
+  try { richDescription = JSON.parse(formText(formData, "rich_description") || "null"); }
+  catch { return { error: "A descrição detalhada está inválida." }; }
   const price = parsePriceInput(formText(formData, "price"));
   const pricingMode = formText(formData, "pricing_mode") || "fixed";
   const cardPrice = tenant.tenant_type === "retail" ? parsePriceInput(formText(formData, "card_price"))
@@ -31,6 +35,7 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
   const parsed = productSchemaForTenant(tenant.tenant_type).safeParse({
     name: formText(formData, "name"),
     description: formText(formData, "description"),
+    rich_description: richDescription,
     price,
     card_price: cardPrice,
     pricing_mode: pricingMode,
@@ -82,6 +87,7 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
     name: parsed.data.name,
     slug,
     description: parsed.data.description,
+    rich_description: parsed.data.rich_description,
     price: parsed.data.price,
     card_price: parsed.data.card_price,
     pricing_mode: parsed.data.pricing_mode,
@@ -185,12 +191,17 @@ export async function saveSettingsAction(_state: ActionState, formData: FormData
   const parsed = tenantSettingsSchema.safeParse({
     name: formText(formData, "name"),
     storefront_template: formText(formData, "storefront_template"),
+    primary_color: formText(formData, "primary_color"),
+    secondary_color: formText(formData, "secondary_color"),
     storefront_config: rawConfig,
     whatsapp_number: rawWhatsApp,
   });
   if (!parsed.success) return { error: firstIssue(parsed.error.issues) };
   const logoUrl = formText(formData, "logo_url").trim() || null;
   const storefrontConfig = parsed.data.storefront_config;
+  if (tenant.tenant_type === "food" && richTextCharacterCount(storefrontConfig.sections.about.rich_text) > 4_000) {
+    return { error: "A descrição formatada da loja pode ter até 4.000 caracteres para cardápios." };
+  }
   if (logoUrl && !isTenantAssetUrl(logoUrl, tenant.id, "logo")) return { error: "A logo informada não pertence ao armazenamento desta loja." };
   if (!storefrontConfig.hero.image_urls.every((url) => isTenantAssetUrl(url, tenant.id, "banners"))) {
     return { error: "Uma das imagens do banner não pertence ao armazenamento desta loja." };
@@ -204,6 +215,8 @@ export async function saveSettingsAction(_state: ActionState, formData: FormData
   const { error } = await supabase.from("tenants").update({
     name: parsed.data.name,
     storefront_template: parsed.data.storefront_template,
+    primary_color: parsed.data.primary_color,
+    secondary_color: parsed.data.secondary_color,
     storefront_config: storefrontConfig,
     whatsapp_number: parsed.data.whatsapp_number,
     logo_url: logoUrl,

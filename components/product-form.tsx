@@ -10,6 +10,10 @@ import { PriceField } from "@/components/masked-fields";
 import { uploadTenantImages } from "@/lib/browser-assets";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { ActionState } from "@/lib/actions";
+import { RichTextEditor } from "@/components/rich-text-editor";
+import { RichTextContent } from "@/components/rich-text-content";
+import { richTextDocumentSchema } from "@/lib/rich-text-schema";
+import type { RichTextDocument } from "@/lib/rich-text-schema";
 
 export function ProductForm({ tenantId, tenantType, product, categories }: { tenantId: string; tenantType: TenantType; product?: Product | null; categories: Pick<Category, "id" | "name" | "active">[] }) {
   const [uploadStatus, setUploadStatus] = useState("");
@@ -64,6 +68,10 @@ export function ProductForm({ tenantId, tenantType, product, categories }: { ten
   const [imageUrls, setImageUrls] = useState(startingImages);
   const [detailSections, setDetailSections] = useState<ProductDetailSection[]>(product?.detail_sections ?? []);
   const [attributes, setAttributes] = useState<ProductAttribute[]>(product?.attributes ?? []);
+  const [richDescription, setRichDescription] = useState<RichTextDocument | null>(() => {
+    const parsed = richTextDocumentSchema.safeParse(product?.rich_description);
+    return parsed.success ? parsed.data : null;
+  });
   const [pricingMode, setPricingMode] = useState(product?.pricing_mode ?? "fixed");
   const [selectedCount, setSelectedCount] = useState(0);
   const selectedImageSummary = useMemo(() => selectedCount ? `${selectedCount} foto${selectedCount === 1 ? "" : "s"} nova${selectedCount === 1 ? "" : "s"} selecionada${selectedCount === 1 ? "" : "s"}` : "", [selectedCount]);
@@ -74,11 +82,20 @@ export function ProductForm({ tenantId, tenantType, product, categories }: { ten
     {product ? <input type="hidden" name="id" value={product.id} /> : null}
     <input type="hidden" name="image_urls" value={JSON.stringify(imageUrls)} />
     <input type="hidden" name="attributes" value={JSON.stringify(attributes)} />
+    <input type="hidden" name="rich_description" value={JSON.stringify(richDescription)} />
     <div className="form-section-heading"><span className="step-number">01</span><div><strong>Informações do {itemLabel}</strong><p>Descreva {tenantType === "food" ? "o item do cardápio" : tenantType === "services" ? "o serviço" : "o produto"} de um jeito claro para quem visita sua loja.</p></div></div>
     <label className="field"><span>Nome {tenantType === "services" ? "do serviço" : tenantType === "food" ? "do item" : "do produto"}</span><input name="name" required minLength={2} maxLength={100} defaultValue={product?.name ?? ""} placeholder={tenantType === "food" ? "Ex.: Hambúrguer da casa" : tenantType === "services" ? "Ex.: Manutenção preventiva" : "Ex.: Câmera mirrorless X-T50"} /></label>
     {tenantType === "retail" ? <div className="form-row"><label className="field"><span>Preço no Pix</span><div className="price-input-wrap"><span>R$</span><PriceField name="price" defaultValue={product?.price ?? ""} /></div></label><label className="field"><span>Preço no cartão <small>em até 12x</small></span><div className="price-input-wrap"><span>R$</span><PriceField name="card_price" defaultValue={product?.card_price ?? product?.price ?? ""} /></div></label></div> : tenantType === "food" ? <><input type="hidden" name="pricing_mode" value="fixed" /><label className="field"><span>Preço</span><div className="price-input-wrap"><span>R$</span><PriceField name="price" defaultValue={product?.price ?? ""} /></div></label></> : <><label className="field"><span>Como o preço será exibido</span><select name="pricing_mode" value={pricingMode} onChange={(event) => setPricingMode(event.target.value as typeof pricingMode)}><option value="fixed">Preço fixo</option><option value="starting_at">A partir de</option><option value="quote">Consultar orçamento</option></select></label>{pricingMode === "quote" ? <p className="form-footnote">O cliente verá “Consultar” e poderá pedir um orçamento pelo WhatsApp.</p> : <label className="field"><span>{pricingMode === "starting_at" ? "Preço inicial" : "Preço do serviço"}</span><div className="price-input-wrap"><span>R$</span><PriceField name="price" defaultValue={product?.price ?? ""} /></div></label>}</>}
     <label className="field"><span>Categoria</span><select name="category_id" defaultValue={product?.category_id ?? ""}><option value="">Sem categoria</option>{categories.filter((category) => category.active || category.id === product?.category_id).map((category) => <option value={category.id} key={category.id}>{category.name}{category.active ? "" : " · inativa"}</option>)}</select></label>
-    <label className="field"><span>Descrição <small>opcional</small></span><textarea name="description" rows={4} maxLength={2000} defaultValue={product?.description ?? ""} placeholder={tenantType === "food" ? "Ingredientes, acompanhamentos, tamanho da porção…" : tenantType === "services" ? "Como funciona, duração e o que está incluído…" : "Materiais, detalhes e o que faz esse produto especial…"} /></label>
+    <label className="field"><span>Resumo curto <small>aparece nos cards · opcional</small></span><textarea name="description" rows={3} maxLength={2000} defaultValue={product?.description ?? ""} placeholder={tenantType === "food" ? "Ingredientes ou acompanhamentos principais…" : tenantType === "services" ? "Uma frase sobre como este serviço ajuda…" : "Uma frase para apresentar o produto…"} /></label>
+    <RichTextEditor
+      label={tenantType === "food" ? "Descrição do item" : tenantType === "services" ? "Detalhes do serviço" : "Descrição detalhada"}
+      value={richDescription}
+      onChange={setRichDescription}
+      maxCharacters={tenantType === "food" ? 4_000 : 10_000}
+      verticalHint={tenantType === "food" ? "Use ingredientes e observações de forma objetiva para manter o cardápio fácil de consultar." : tenantType === "services" ? "Explique o processo, o que está incluso e os resultados esperados." : "Inclua características, especificações e benefícios na página do produto."}
+    />
+    {richDescription ? <div className="rich-text-preview"><span>Prévia da página detalhada</span><RichTextContent document={richDescription} /></div> : null}
     <label className="field"><span>Destaques <small>até 20 itens, um por linha</small></span><textarea name="highlights" rows={4} maxLength={4000} defaultValue={product?.highlights?.join("\n") ?? ""} placeholder={tenantType === "food" ? "Feito na hora\nAcompanha fritas\nOpção vegetariana" : tenantType === "services" ? "Atendimento especializado\nAgendamento flexível\nGarantia do serviço" : "Sensor de alta resolução\nEstabilização de imagem\nGarantia de 12 meses"} /></label>
 
     <div className="form-section-heading section-separator"><span className="step-number">02</span><div><strong>Informações adicionais</strong><p>Crie seções e campos adequados ao tipo de produto, como medidas, material, compatibilidade ou composição.</p></div></div>
