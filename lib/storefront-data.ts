@@ -9,6 +9,7 @@ export const PUBLIC_CATALOG_PAGE_SIZE = 24;
 const templateSchema = z.enum(["technology", "nature", "sports", "essentials"]);
 const sectionKeySchema = z.enum(["categories", "featured", "catalog", "about", "contact"]);
 const storefrontConfigSchema = z.object({
+  font_family: z.enum(["montserrat", "inter", "roboto", "lora", "playfair"]).default("montserrat"),
   navigation: z.object({ show_home_link: z.boolean(), show_category_links: z.boolean(), show_category_filters: z.boolean(), show_featured_link: z.boolean(), show_about_link: z.boolean(), show_contact_link: z.boolean(), show_whatsapp_cta: z.boolean() }),
   hero: z.object({
     enabled: z.boolean(), mode: z.enum(["static", "split", "carousel"]), title: z.string(),
@@ -39,12 +40,12 @@ const storefrontProductSchema = z.object({
 
 const storeBrandSchema = z.object({
   id: z.string().uuid(), name: z.string(), slug: z.string(), domain: z.string().nullable(), logo_url: z.string().nullable(),
+  primary_color: z.string(), secondary_color: z.string(),
   storefront_template: templateSchema, whatsapp_number: z.string().nullable(),
   storefront_config: storefrontConfigSchema,
 });
 
 const storefrontSchema = storeBrandSchema.extend({
-  primary_color: z.string(), secondary_color: z.string(),
   categories: z.array(z.object({ id: z.string().uuid(), name: z.string(), slug: z.string() })),
   products: z.array(storefrontProductSchema), featured_products: z.array(storefrontProductSchema),
   total_products: z.number().int().nonnegative(),
@@ -52,7 +53,13 @@ const storefrontSchema = storeBrandSchema.extend({
 
 const productDetailSchema = z.object({
   store: storeBrandSchema,
-  product: storefrontProductSchema.extend({ tenant_id: z.string().uuid() }),
+  product: storefrontProductSchema.extend({
+    tenant_id: z.string().uuid(),
+    detail_sections: z.array(z.object({
+      title: z.string(),
+      items: z.array(z.object({ label: z.string(), value: z.string() })),
+    })),
+  }),
 });
 
 export type StorefrontQuery = { page?: number; categoryId?: string | null; availability?: string | null };

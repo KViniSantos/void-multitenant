@@ -10,6 +10,23 @@ const allowedTypes: Record<string, string> = {
   "image/avif": "avif",
 };
 
+export function isTenantAssetUrl(url: string, tenantId: string, folder: "logo" | "products" | "banners" | "about") {
+  const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!configuredUrl) return false;
+  try {
+    const asset = new URL(url);
+    const supabase = new URL(configuredUrl);
+    const folderPrefix = `/storage/v1/object/public/store-assets/${tenantId}/${folder}/`;
+    return asset.origin === supabase.origin
+      && asset.pathname.startsWith(folderPrefix)
+      && asset.pathname.length > folderPrefix.length
+      && !asset.search
+      && !asset.hash;
+  } catch {
+    return false;
+  }
+}
+
 async function detectImageType(file: File) {
   const bytes = new Uint8Array(await file.slice(0, 32).arrayBuffer());
   const ascii = (start: number, length: number) => String.fromCharCode(...bytes.slice(start, start + length));

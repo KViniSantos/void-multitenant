@@ -58,6 +58,7 @@ export const tenantSettingsSchema = z.object({
     const title = z.string().trim().min(1).max(80);
     const social = z.string().trim().max(500).refine((url) => !url || /^https:\/\//i.test(url), "Use um link seguro iniciado por https://.");
     const schema = z.object({
+      font_family: z.enum(["montserrat", "inter", "roboto", "lora", "playfair"]).default("montserrat"),
       navigation: z.object({ show_home_link: bool, show_category_links: bool, show_category_filters: bool, show_featured_link: bool, show_about_link: bool, show_contact_link: bool, show_whatsapp_cta: bool }),
       hero: z.object({ enabled: bool, mode: z.enum(["static", "split", "carousel"]), title, description: z.string().trim().max(500), cta_label: z.string().trim().max(50), image_urls: z.array(z.string().url()).max(8) }),
       sections: z.object({
@@ -90,7 +91,11 @@ export const productSchema = z.object({
   product_condition: z.enum(["new", "used", "refurbished"]),
   stock_quantity: z.number().int().nonnegative().nullable(),
   featured: z.boolean(),
-  highlights: z.array(z.string().trim().min(1).max(180)).max(10),
+  highlights: z.array(z.string().trim().min(1).max(180, "Cada destaque pode ter até 180 caracteres.")).max(20, "Informe no máximo 20 destaques para este produto."),
+  detail_sections: z.array(z.object({
+    title: z.string().trim().min(1).max(80),
+    items: z.array(z.object({ label: z.string().trim().min(1).max(60), value: z.string().trim().min(1).max(240) })).max(12, "Cada seção pode ter no máximo 12 informações."),
+  })).max(6, "O produto pode ter no máximo 6 seções de informação."),
 });
 
 export const categorySchema = z.object({

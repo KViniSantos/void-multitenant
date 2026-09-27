@@ -22,11 +22,14 @@ export type Profile = {
 };
 
 export type StorefrontTemplate = "technology" | "nature" | "sports" | "essentials";
+export type StorefrontFont = "montserrat" | "inter" | "roboto" | "lora" | "playfair";
 export type ProductAvailability = "in_stock" | "preorder" | "sold_out";
 export type ProductCondition = "new" | "used" | "refurbished";
 export type StorefrontSectionKey = "categories" | "featured" | "catalog" | "about" | "contact";
+export type ProductDetailSection = { title: string; items: { label: string; value: string }[] };
 
 export type StorefrontConfig = {
+  font_family: StorefrontFont;
   navigation: { show_home_link: boolean; show_category_links: boolean; show_category_filters: boolean; show_featured_link: boolean; show_about_link: boolean; show_contact_link: boolean; show_whatsapp_cta: boolean };
   hero: {
     enabled: boolean;
@@ -62,6 +65,7 @@ export type StorefrontConfig = {
 };
 
 export const DEFAULT_STOREFRONT_CONFIG: StorefrontConfig = {
+  font_family: "montserrat",
   navigation: { show_home_link: true, show_category_links: true, show_category_filters: true, show_featured_link: true, show_about_link: false, show_contact_link: true, show_whatsapp_cta: true },
   hero: {
     enabled: true,
@@ -140,6 +144,7 @@ export type Product = {
   stock_quantity: number | null;
   featured: boolean;
   highlights: string[];
+  detail_sections: ProductDetailSection[];
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -165,12 +170,10 @@ export type StorefrontProduct = Pick<
 
 export type StorefrontBrand = Pick<
   Tenant,
-  "id" | "name" | "slug" | "domain" | "logo_url" | "storefront_template" | "storefront_config" | "whatsapp_number"
+  "id" | "name" | "slug" | "domain" | "logo_url" | "storefront_template" | "storefront_config" | "whatsapp_number" | "primary_color" | "secondary_color"
 >;
 
 export type PublicStorefront = StorefrontBrand & {
-  primary_color: string;
-  secondary_color: string;
   categories: StorefrontCategory[];
   products: StorefrontProduct[];
   featured_products: StorefrontProduct[];
@@ -179,7 +182,7 @@ export type PublicStorefront = StorefrontBrand & {
 
 export type PublicProductDetail = {
   store: StorefrontBrand;
-  product: StorefrontProduct & { tenant_id: string };
+  product: StorefrontProduct & { tenant_id: string; detail_sections: ProductDetailSection[] };
 };
 
 type Defaulted<T, Keys extends keyof T> = Omit<T, Keys> & Partial<Pick<T, Keys>>;
@@ -190,7 +193,7 @@ export type Database = {
       profiles: Table<Profile, Defaulted<Profile, "platform_role" | "created_at" | "updated_at">>;
       tenants: Table<Tenant, Defaulted<Tenant, "id" | "logo_url" | "primary_color" | "secondary_color" | "whatsapp_number" | "storefront_template" | "storefront_config" | "active" | "created_at" | "updated_at">>;
       categories: Table<Category, Defaulted<Category, "id" | "created_at" | "updated_at">>;
-      products: Table<Product, Defaulted<Product, "id" | "image_url" | "image_urls" | "availability" | "product_condition" | "stock_quantity" | "featured" | "highlights" | "active" | "created_at" | "updated_at">>;
+      products: Table<Product, Defaulted<Product, "id" | "image_url" | "image_urls" | "availability" | "product_condition" | "stock_quantity" | "featured" | "highlights" | "detail_sections" | "active" | "created_at" | "updated_at">>;
       product_daily_metrics: Table<
         { tenant_id: string; product_id: string; metric_date: string; views: number },
         { tenant_id: string; product_id: string; metric_date: string; views?: number }

@@ -1,0 +1,12 @@
+export type SocialNetwork = "Instagram" | "Facebook" | "TikTok" | "YouTube";
+
+export function SocialIcon({ network }: { network: SocialNetwork }) {
+  if (network === "Instagram") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.25" y="3.25" width="17.5" height="17.5" rx="5" fill="none" stroke="currentColor" strokeWidth="1.8" /><circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" strokeWidth="1.8" /><circle cx="17.65" cy="6.55" r="1.15" fill="currentColor" /></svg>;
+  if (network === "Facebook") return <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.5 21v-8.1h2.72l.41-3.16H13.5V7.72c0-.91.27-1.53 1.57-1.53h1.68V3.36c-.29-.04-1.29-.13-2.46-.13-2.43 0-4.09 1.48-4.09 4.2v2.31H7.45v3.16h2.75V21h3.3Z" /></svg>;
+  if (network === "TikTok") return <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.6 7.1a5.2 5.2 0 0 1-3.22-1.12v7.28a5.38 5.38 0 1 1-4.65-5.33v3.34a2.12 2.12 0 1 0 1.38 2V2.5h3.27c.12 2.14 1.47 3.88 3.22 4.3v.3Z" /></svg>;
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M23.2 7.05a3 3 0 0 0-2.12-2.12C19.21 4.42 12 4.42 12 4.42s-7.21 0-9.08.51A3 3 0 0 0 .8 7.05 31.4 31.4 0 0 0 .29 12s0 3.3.51 4.95a3 3 0 0 0 2.12 2.12c1.87.51 9.08.51 9.08.51s7.21 0 9.08-.51a3 3 0 0 0 2.12-2.12c.51-1.65.51-4.95.51-4.95s0-3.3-.51-4.95ZM9.6 15.26V8.74L15.3 12l-5.7 3.26Z" /></svg>;
+}
+
+export function WhatsAppMark({ className }: { className?: string }) {
+  return <svg className={className} viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.52 3.48A11.82 11.82 0 0 0 12.1 0C5.55 0 .23 5.32.22 11.86c0 2.08.54 4.1 1.57 5.88L.11 24l6.41-1.68a11.9 11.9 0 0 0 5.57 1.38h.01c6.54 0 11.87-5.32 11.88-11.86a11.8 11.8 0 0 0-3.46-8.36ZM12.1 21.68h-.01a9.87 9.87 0 0 1-5.02-1.37l-.36-.21-3.8 1 1.01-3.7-.23-.37a9.78 9.78 0 0 1-1.51-5.17c0-5.47 4.45-9.92 9.93-9.92a9.86 9.86 0 0 1 7.02 2.91 9.85 9.85 0 0 1 2.9 7.02c0 5.47-4.45 9.91-9.93 9.91Zm5.45-7.42c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.4-1.47-.88-.78-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51l-.57-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.87 1.21 3.07c.15.2 2.09 3.2 5.07 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35Z" /></svg>;
+}

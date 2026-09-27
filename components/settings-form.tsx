@@ -7,6 +7,9 @@ import { DEFAULT_STOREFRONT_CONFIG } from "@/lib/database.types";
 import { saveSettingsAction } from "@/app/actions/dashboard";
 import { ActionMessage } from "@/components/action-message";
 import { CnpjField, WhatsAppField } from "@/components/masked-fields";
+import { uploadTenantImages } from "@/lib/browser-assets";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import type { ActionState } from "@/lib/actions";
 
 const templates: { id: StorefrontTemplate; name: string; description: string }[] = [
   { id: "technology", name: "Tecnologia", description: "Contraste escuro, roxo e visual preciso." },
@@ -17,9 +20,72 @@ const templates: { id: StorefrontTemplate; name: string; description: string }[]
 const sectionNames: Record<StorefrontConfig["section_order"][number], string> = { categories: "Categorias", featured: "Destaques", catalog: "Catálogo", about: "Sobre a loja", contact: "Contato" };
 
 export function SettingsForm({ tenant }: { tenant: Tenant }) {
-  const [state, action, pending] = useActionState(saveSettingsAction, {});
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [state, action, pending] = useActionState(async (previous: ActionState, formData: FormData): Promise<ActionState> => {
+    const uploadedPaths: string[] = [];
+    try {
+      let nextConfig: StorefrontConfig;
+      try { nextConfig = JSON.parse(String(formData.get("storefront_config") ?? "")) as StorefrontConfig; }
+      catch { return { error: "As configurações visuais estão inválidas." }; }
+      const logoFile = formData.get("logo");
+      const logoFiles = logoFile instanceof File && logoFile.size ? [logoFile] : [];
+      const bannerFiles = formData.getAll("banner_images").filter((file): file is File => file instanceof File && file.size > 0);
+      const aboutFile = formData.get("about_image");
+      const aboutFiles = aboutFile instanceof File && aboutFile.size ? [aboutFile] : [];
+      const maxBanners = 8 - nextConfig.hero.image_urls.length;
+      if (bannerFiles.length > maxBanners) return { error: `Mantenha no máximo 8 imagens no banner. Você já tem ${nextConfig.hero.image_urls.length}.` };
+
+      const supabase = (logoFiles.length || bannerFiles.length || aboutFiles.length) ? createSupabaseBrowserClient() : null;
+      let logoUrl = String(formData.get("logo_url") ?? "");
+      if (logoFiles.length && supabase) {
+        setUploadStatus("Enviando logo ao Supabase…");
+        const uploaded = await uploadTenantImages(supabase, logoFiles, tenant.id, "logo", 1);
+        if (uploaded.error) return { error: uploaded.error };
+        uploadedPaths.push(...uploaded.paths);
+        logoUrl = uploaded.urls[0] ?? logoUrl;
+      }
+      if (bannerFiles.length && supabase) {
+        setUploadStatus(`Enviando ${bannerFiles.length} imagem${bannerFiles.length === 1 ? "" : "s"} do banner…`);
+        const uploaded = await uploadTenantImages(supabase, bannerFiles, tenant.id, "banners", maxBanners);
+        if (uploaded.error) {
+          if (uploadedPaths.length) await supabase.storage.from("store-assets").remove(uploadedPaths);
+          return { error: uploaded.error };
+        }
+        uploadedPaths.push(...uploaded.paths);
+        nextConfig.hero.image_urls = [...nextConfig.hero.image_urls, ...uploaded.urls];
+      }
+      if (aboutFiles.length && supabase) {
+        setUploadStatus("Enviando imagem da seção Sobre…");
+        const uploaded = await uploadTenantImages(supabase, aboutFiles, tenant.id, "about", 1);
+        if (uploaded.error) {
+          if (uploadedPaths.length) await supabase.storage.from("store-assets").remove(uploadedPaths);
+          return { error: uploaded.error };
+        }
+        uploadedPaths.push(...uploaded.paths);
+        nextConfig.sections.about.image_url = uploaded.urls[0] ?? null;
+      }
+
+      formData.set("storefront_config", JSON.stringify(nextConfig));
+      formData.set("logo_url", logoUrl);
+      formData.delete("logo");
+      formData.delete("banner_images");
+      formData.delete("about_image");
+      const result = await saveSettingsAction(previous, formData);
+      if (result.error && uploadedPaths.length && supabase) await supabase.storage.from("store-assets").remove(uploadedPaths);
+      return result;
+    } catch (error) {
+      if (uploadedPaths.length) await createSupabaseBrowserClient().storage.from("store-assets").remove(uploadedPaths);
+      return { error: error instanceof Error ? error.message : "Não foi possível enviar as imagens. Tente novamente." };
+    } finally {
+      setUploadStatus("");
+    }
+  }, {});
   const [template, setTemplate] = useState<StorefrontTemplate>(tenant.storefront_template);
-  const [config, setConfig] = useState<StorefrontConfig>(tenant.storefront_config ?? DEFAULT_STOREFRONT_CONFIG);
+  const [config, setConfig] = useState<StorefrontConfig>(() => ({
+    ...DEFAULT_STOREFRONT_CONFIG,
+    ...tenant.storefront_config,
+    font_family: tenant.storefront_config?.font_family ?? "montserrat",
+  }));
   const updateHero = (patch: Partial<StorefrontConfig["hero"]>) => setConfig((current) => ({ ...current, hero: { ...current.hero, ...patch } }));
   const updateNavigation = (patch: Partial<StorefrontConfig["navigation"]>) => setConfig((current) => ({ ...current, navigation: { ...current.navigation, ...patch } }));
   const updateSection = <K extends keyof StorefrontConfig["sections"]>(key: K, patch: Partial<StorefrontConfig["sections"][K]>) => setConfig((current) => ({ ...current, sections: { ...current.sections, [key]: { ...current.sections[key], ...patch } } }));
@@ -34,12 +100,14 @@ export function SettingsForm({ tenant }: { tenant: Tenant }) {
   return <form action={action} className="panel editor-form settings-form-v2" encType="multipart/form-data">
     <div className="form-section-heading"><span className="step-number">01</span><div><strong>Identidade da loja</strong><p>Como seus clientes reconhecem a sua marca.</p></div></div>
     <label className="field"><span>Nome da loja</span><input name="name" minLength={2} maxLength={80} required defaultValue={tenant.name} /></label>
-    <div className="logo-upload-row">{tenant.logo_url ? <Image className="settings-logo" src={tenant.logo_url} alt="Logo atual" width={112} height={64} /> : <span className="settings-logo-fallback">{tenant.name.slice(0, 1)}</span>}<label className="field file-field"><span>Logo da loja</span><input name="logo" type="file" accept="image/jpeg,image/png,image/webp,image/avif" /><small>PNG ou WebP com fundo transparente funciona bem · até 5 MB.</small></label></div>
+    <div className="logo-upload-row">{tenant.logo_url ? <Image className="settings-logo" src={tenant.logo_url} alt="Logo atual" width={112} height={64} /> : <span className="settings-logo-fallback">{tenant.name.slice(0, 1)}</span>}<label className="field file-field"><span>Logo da loja</span><input name="logo" type="file" accept="image/jpeg,image/png,image/webp,image/avif" /><small>PNG ou WebP com fundo transparente funciona bem · até 5 MB. Envio direto ao Supabase Storage.</small></label></div>
+    <input type="hidden" name="logo_url" value={tenant.logo_url ?? ""} />
 
     <div className="form-section-heading section-separator"><span className="step-number">02</span><div><strong>Escolha um template</strong><p>O template define a identidade visual da vitrine e do checkout.</p></div></div>
     <div className="template-choice-grid">{templates.map((item) => <label className={`template-choice theme-${item.id} ${template === item.id ? "is-selected" : ""}`} key={item.id}><input type="radio" name="storefront_template" value={item.id} checked={template === item.id} onChange={() => setTemplate(item.id)} /><span className="template-swatch"><i /><i /><i /></span><strong>{item.name}</strong><small>{item.description}</small></label>)}</div>
 
-    <div className="settings-preview-wrap"><div><span className="settings-preview-label">PRÉVIA DO TEMPLATE</span><strong>{templates.find((item) => item.id === template)?.name}</strong><small>Banner · filtros rápidos · cards e checkout no mesmo estilo.</small><a href={tenant.domain ? `https://${tenant.domain}` : `/${tenant.slug}`} target="_blank" rel="noreferrer">Abrir a loja atual ↗</a></div><div className={`settings-preview theme-${template}`}><span>{tenant.name}</span><b>{config.hero.title || "Sua loja, do seu jeito"}</b><i><em /><em /><em /></i><button type="button">Explorar produtos</button><span className="settings-preview-checkout">Checkout WhatsApp · {templates.find((item) => item.id === template)?.name}</span></div></div>
+    <div className="settings-preview-wrap"><div><span className="settings-preview-label">PRÉVIA DO TEMPLATE</span><strong>{templates.find((item) => item.id === template)?.name}</strong><small>Banner · filtros rápidos · cards e checkout no mesmo estilo.</small><a href={tenant.domain ? `https://${tenant.domain}` : `/${tenant.slug}`} target="_blank" rel="noreferrer">Abrir a loja atual ↗</a></div><div className={`settings-preview theme-${template} sf-font-${config.font_family}`}><span>{tenant.name}</span><b>{config.hero.title || "Sua loja, do seu jeito"}</b><i><em /><em /><em /></i><button type="button">Explorar produtos</button><span className="settings-preview-checkout">Checkout WhatsApp · {templates.find((item) => item.id === template)?.name}</span></div></div>
+    <label className="field"><span>Fonte da loja</span><select value={config.font_family} onChange={(event) => setConfig((current) => ({ ...current, font_family: event.target.value as StorefrontConfig["font_family"] }))}><option value="montserrat">Montserrat · geométrica e moderna</option><option value="inter">Inter · limpa e contemporânea</option><option value="roboto">Roboto · versátil e legível</option><option value="lora">Lora · serifada e editorial</option><option value="playfair">Playfair Display · serifada e elegante</option></select><small>A prévia acima acompanha a tipografia escolhida.</small></label>
 
     <div className="form-section-heading section-separator"><span className="step-number">03</span><div><strong>Banner da loja</strong><p>Use uma imagem, uma composição em duas colunas ou um carrossel.</p></div></div>
     <label className="switch-field"><input type="checkbox" checked={config.hero.enabled} onChange={(event) => updateHero({ enabled: event.target.checked })} /><span className="switch-indicator" /><span><strong>Mostrar banner</strong><small>Você pode desativar esta seção quando quiser.</small></span></label>
@@ -47,7 +115,7 @@ export function SettingsForm({ tenant }: { tenant: Tenant }) {
     <label className="field"><span>Título do banner</span><input value={config.hero.title} maxLength={80} onChange={(event) => updateHero({ title: event.target.value })} /></label>
     <label className="field"><span>Texto do banner</span><textarea rows={3} maxLength={500} value={config.hero.description} onChange={(event) => updateHero({ description: event.target.value })} /></label>
     {config.hero.image_urls.length ? <div className="settings-image-list">{config.hero.image_urls.map((url, index) => <div key={`${url}-${index}`}><Image src={url} alt={`Imagem do banner ${index + 1}`} width={90} height={60} /><span>Imagem {index + 1}</span><button type="button" onClick={() => updateHero({ image_urls: config.hero.image_urls.filter((_, itemIndex) => itemIndex !== index) })}>Remover</button></div>)}</div> : null}
-    <label className="field file-field"><span>{config.hero.mode === "carousel" ? "Fotos do carrossel" : "Imagem do banner"}</span><input name="banner_images" type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple /><small>{config.hero.mode === "carousel" ? "Envie até 8 imagens. A ordem de envio será a ordem do carrossel." : "Envie até 8 imagens; a primeira será usada como banner."} Cada imagem pode ter até 5 MB.</small></label>
+    <label className="field file-field"><span>{config.hero.mode === "carousel" ? "Fotos do carrossel" : "Imagem do banner"}</span><input name="banner_images" type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple /><small>{config.hero.mode === "carousel" ? "Envie até 8 imagens. A ordem de envio será a ordem do carrossel." : "Envie até 8 imagens; a primeira será usada como banner."} Cada imagem pode ter até 5 MB. Envio direto ao Supabase Storage.</small></label>
 
     <div className="form-section-heading section-separator"><span className="step-number">04</span><div><strong>Seções e filtros da vitrine</strong><p>Escolha o que aparece e em que ordem. Os filtros rápidos usam as categorias e a disponibilidade dos produtos.</p></div></div>
     <div className="settings-navigation-options"><label className="switch-field"><input type="checkbox" checked={config.navigation.show_home_link} onChange={(event) => updateNavigation({ show_home_link: event.target.checked })} /><span className="switch-indicator" /><span><strong>Link Início</strong></span></label><label className="switch-field"><input type="checkbox" checked={config.navigation.show_category_links} onChange={(event) => updateNavigation({ show_category_links: event.target.checked })} /><span className="switch-indicator" /><span><strong>Link Categorias na navegação</strong></span></label><label className="switch-field"><input type="checkbox" checked={config.navigation.show_category_filters} onChange={(event) => updateNavigation({ show_category_filters: event.target.checked })} /><span className="switch-indicator" /><span><strong>Filtro rápido por categoria</strong></span></label><label className="switch-field"><input type="checkbox" checked={config.navigation.show_featured_link} onChange={(event) => updateNavigation({ show_featured_link: event.target.checked })} /><span className="switch-indicator" /><span><strong>Link Produtos em destaque</strong></span></label><label className="switch-field"><input type="checkbox" checked={config.navigation.show_about_link} onChange={(event) => updateNavigation({ show_about_link: event.target.checked })} /><span className="switch-indicator" /><span><strong>Link Sobre</strong></span></label><label className="switch-field"><input type="checkbox" checked={config.navigation.show_contact_link} onChange={(event) => updateNavigation({ show_contact_link: event.target.checked })} /><span className="switch-indicator" /><span><strong>Link Contato</strong></span></label><label className="switch-field"><input type="checkbox" checked={config.navigation.show_whatsapp_cta} onChange={(event) => updateNavigation({ show_whatsapp_cta: event.target.checked })} /><span className="switch-indicator" /><span><strong>Botão de atendimento</strong></span></label></div>
@@ -58,7 +126,7 @@ export function SettingsForm({ tenant }: { tenant: Tenant }) {
     <div className="form-row"><label className="field"><span>Produtos por linha</span><select value={config.sections.catalog.columns} onChange={(event) => updateSection("catalog", { columns: Number(event.target.value) as 2 | 3 | 4 | 5 })}><option value={2}>2 produtos</option><option value={3}>3 produtos</option><option value={4}>4 produtos</option><option value={5}>5 produtos</option></select></label><label className="field"><span>Layout dos destaques</span><select value={config.sections.featured.layout} onChange={(event) => updateSection("featured", { layout: event.target.value as "cards" | "banners" })}><option value="cards">Cards de produto</option><option value="banners">Mini banners</option></select></label></div>
     <label className="field"><span>Texto da seção “Sobre a loja”</span><textarea rows={4} maxLength={3000} value={config.sections.about.text} onChange={(event) => updateSection("about", { text: event.target.value })} placeholder="Conte um pouco sobre a empresa e os produtos…" /></label>
     {config.sections.about.image_url ? <div className="settings-image-list"><div><Image src={config.sections.about.image_url} alt="Imagem da seção sobre" width={90} height={60} /><span>Imagem atual</span><button type="button" onClick={() => updateSection("about", { image_url: null })}>Remover</button></div></div> : null}
-    <label className="field file-field"><span>Imagem da seção sobre</span><input name="about_image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" /><small>Opcional · JPG, PNG, WebP ou AVIF · até 5 MB.</small></label>
+    <label className="field file-field"><span>Imagem da seção sobre</span><input name="about_image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" /><small>Opcional · JPG, PNG, WebP ou AVIF · até 5 MB. Envio direto ao Supabase Storage.</small></label>
 
     <div className="form-section-heading section-separator"><span className="step-number">05</span><div><strong>Rodapé completo</strong><p>Dados da empresa, redes sociais e canais de atendimento.</p></div></div>
     <label className="switch-field"><input type="checkbox" checked={config.footer.enabled} onChange={(event) => updateFooter({ enabled: event.target.checked })} /><span className="switch-indicator" /><span><strong>Mostrar rodapé</strong><small>Exibe os dados definidos abaixo.</small></span></label>
@@ -74,7 +142,8 @@ export function SettingsForm({ tenant }: { tenant: Tenant }) {
     <label className="field"><span>Número do WhatsApp</span><WhatsAppField defaultValue={tenant.whatsapp_number ?? ""} /><small>Digite o DDD e número. O código +55 é incluído automaticamente.</small></label>
     <div className="domain-setting"><div className="domain-setting-icon">⌁</div><div><strong>{tenant.domain ?? `/${tenant.slug}`}</strong><small>{tenant.domain ? "Domínio conectado. Aponte DNS para a Vercel para receber visitas." : "Endereço de prévia. O administrador da plataforma poderá conectar seu domínio."}</small></div><span className={tenant.domain ? "status-pill status-active" : "status-pill status-draft"}>{tenant.domain ? "Configurado" : "Prévia"}</span></div>
     <input type="hidden" name="storefront_config" value={JSON.stringify(config)} />
+    {uploadStatus ? <p className="form-footnote" role="status">{uploadStatus}</p> : null}
     <ActionMessage state={state} />
-    <div className="form-actions"><button className="button button-dark" type="submit" disabled={pending}>{pending ? "Salvando…" : "Salvar configurações"}<span>↗</span></button></div>
+    <div className="form-actions"><button className="button button-dark" type="submit" disabled={pending}>{pending ? uploadStatus || "Salvando…" : "Salvar configurações"}<span>↗</span></button></div>
   </form>;
 }

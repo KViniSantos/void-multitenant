@@ -6,6 +6,8 @@ import { formatCurrency } from "@/lib/format";
 import { productHref } from "@/lib/storefront-data";
 import { CartAddButton, StoreCart } from "@/components/store-cart";
 import { HeroCarousel } from "@/components/storefront-carousel";
+import { StorefrontHeader } from "@/components/storefront-header";
+import { SocialIcon, WhatsAppMark } from "@/components/storefront-icons";
 
 type FilterState = { page: number; categoryId: string | null; availability: string | null; totalPages: number };
 type Props = { store: PublicStorefront; filters?: FilterState; basePath?: string };
@@ -105,10 +107,15 @@ function SectionContent({ id, store, config, filters, basePath }: { id: keyof St
 function StoreFooter({ store, config, basePath }: { store: PublicStorefront; config: StorefrontConfig; basePath: string }) {
   const footer = config.footer;
   if (!footer.enabled) return null;
-  const links = [["Instagram", footer.instagram], ["Facebook", footer.facebook], ["TikTok", footer.tiktok], ["YouTube", footer.youtube]].filter((item) => item[1]);
+  const links = [
+    { label: "Instagram" as const, url: footer.instagram },
+    { label: "Facebook" as const, url: footer.facebook },
+    { label: "TikTok" as const, url: footer.tiktok },
+    { label: "YouTube" as const, url: footer.youtube },
+  ].filter((item) => item.url);
   return <footer className="sf-footer" id="rodape">
     <div className="sf-footer-main">
-      <div className="sf-footer-brand">{footer.show_logo ? <a className="sf-brand" href="#inicio">{store.logo_url ? <Image className="sf-logo" src={store.logo_url} alt="" width={150} height={56} /> : <span className="sf-logo-fallback">{store.name.slice(0, 1)}</span>}<strong>{store.name}</strong></a> : <strong>{store.name}</strong>}<p>Atendimento próximo para ajudar você a escolher.</p>{links.length ? <div className="sf-social-links">{links.map(([label, url]) => <a key={label} href={url!} target="_blank" rel="noreferrer">{label}</a>)}</div> : null}{footer.cnpj ? <small>CNPJ {footer.cnpj}</small> : null}</div>
+      <div className="sf-footer-brand">{footer.show_logo ? <a className="sf-brand" href="#inicio">{store.logo_url ? <Image className="sf-logo" src={store.logo_url} alt="" width={150} height={56} /> : <span className="sf-logo-fallback">{store.name.slice(0, 1)}</span>}<strong>{store.name}</strong></a> : <strong>{store.name}</strong>}<p>Atendimento próximo para ajudar você a escolher.</p>{links.length ? <div className="sf-social-links">{links.map(({ label, url }) => <a key={label} href={url!} target="_blank" rel="noreferrer" aria-label={`Acesse ${store.name} no ${label}`}><SocialIcon network={label} /><span>{label}</span></a>)}</div> : null}{footer.cnpj ? <small>CNPJ {footer.cnpj}</small> : null}</div>
       {footer.show_categories ? <div className="sf-footer-column"><h3>Categorias</h3>{store.categories.slice(0, 8).map((category) => <a key={category.id} href={catalogHref(basePath, { page: 1, categoryId: category.id, availability: null, totalPages: 1 })}>{category.name}</a>)}</div> : null}
       {footer.show_contact ? <div className="sf-footer-column"><h3>Atendimento</h3>{footer.hours ? <p>{footer.hours}</p> : null}{store.whatsapp_number ? <a href={`https://wa.me/${store.whatsapp_number}`}>WhatsApp: +{store.whatsapp_number}</a> : null}{footer.email ? <a href={`mailto:${footer.email}`}>{footer.email}</a> : null}{footer.address ? <p>{footer.address}</p> : null}</div> : null}
     </div>
@@ -120,22 +127,15 @@ export function Storefront({ store, filters, basePath = store.domain ? "/" : `/$
   const config = store.storefront_config;
   const active = filters ?? { page: 1, categoryId: null, availability: null, totalPages: 1 };
   const availableSections = config.section_order.length ? config.section_order : ["categories", "featured", "catalog", "about", "contact"] as const;
-  const navLinks = [
-    ...(config.navigation.show_home_link ? [{ key: "home", label: "Início", href: "#inicio" }] : []),
-    ...(config.navigation.show_category_links && config.sections.categories.enabled ? [{ key: "categories", label: "Categorias", href: "#categorias" }] : []),
-    ...(config.navigation.show_featured_link && config.sections.featured.enabled ? [{ key: "featured", label: "Destaques", href: "#destaques" }] : []),
-    ...(config.navigation.show_about_link && config.sections.about.enabled ? [{ key: "about", label: "Sobre", href: "#sobre" }] : []),
-    ...(config.navigation.show_contact_link && config.sections.contact.enabled ? [{ key: "contact", label: "Contato", href: "#contato" }] : []),
-  ];
   const cartProducts = [...new Map([...store.featured_products, ...store.products].map((product) => [product.id, product])).values()];
   const brandStyle = { "--store-primary": store.primary_color, "--store-secondary": store.secondary_color, "--catalog-columns": config.sections.catalog.columns } as CSSProperties;
   const themeClass = `theme-${store.storefront_template}`;
-  return <main className={`storefront-v2 ${themeClass}`} style={brandStyle}>
-    <header className="sf-header"><a className="sf-brand" href="#inicio" aria-label={`Início: ${store.name}`}>{store.logo_url ? <Image className="sf-logo" src={store.logo_url} alt="" width={150} height={56} /> : <span className="sf-logo-fallback">{store.name.slice(0, 1)}</span>}<strong>{store.name}</strong></a><nav className="sf-nav" aria-label="Navegação principal">{navLinks.map((link) => <a key={link.key} href={link.href}>{link.label}</a>)}</nav>{config.navigation.show_whatsapp_cta ? <a className="sf-header-contact" href={store.whatsapp_number ? `https://wa.me/${store.whatsapp_number}` : "#contato"}>Atendimento <span>↗</span></a> : null}</header>
+  return <main className={`storefront-v2 ${themeClass} sf-font-${config.font_family}`} style={brandStyle}>
+    <StorefrontHeader store={store} basePath={basePath} />
     <Hero store={store} config={config} />
     {availableSections.map((id) => <SectionContent key={id} id={id} store={store} config={config} filters={active} basePath={basePath} />)}
     <StoreFooter store={store} config={config} basePath={basePath} />
-    {store.whatsapp_number ? <a className="sf-floating-whatsapp" href={`https://wa.me/${store.whatsapp_number}`} aria-label="Fale com a loja pelo WhatsApp" target="_blank" rel="noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 11.7a8.1 8.1 0 0 1-11.95 7.1L4 20l1.25-4.08a8.1 8.1 0 1 1 14.95-4.22Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M9 8.6c.2-.45.4-.47.7-.47h.44c.15 0 .35.04.5.4l.63 1.5c.08.2.08.36-.05.54l-.46.56c-.14.16-.28.34-.12.62.16.29.72 1.18 1.55 1.91.97.86 1.8 1.12 2.1 1.25.3.13.48.11.65-.1l.76-.91c.19-.23.38-.25.64-.15l1.54.73c.25.12.42.18.48.29.06.1.06.59-.15 1.16-.2.57-1.2 1.12-1.66 1.18-.43.07-.98.1-1.58-.09-.36-.11-.82-.26-1.4-.52-2.46-1.07-4.07-3.57-4.2-3.74-.12-.17-.99-1.31-.99-2.5 0-1.2.63-1.77.85-2.01Z" fill="currentColor"/></svg></a> : null}
+    {store.whatsapp_number ? <a className="sf-floating-whatsapp" href={`https://wa.me/${store.whatsapp_number}`} aria-label="Fale com a loja pelo WhatsApp" target="_blank" rel="noreferrer"><WhatsAppMark /></a> : null}
     <StoreCart storeName={store.name} storeKey={store.id} whatsapp={store.whatsapp_number} products={cartProducts} template={store.storefront_template} />
   </main>;
 }

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireTenant } from "@/lib/access";
-import { uploadTenantAsset, uploadTenantAssets } from "@/lib/assets";
+import { isTenantAssetUrl } from "@/lib/assets";
 import { firstIssue, type ActionState } from "@/lib/actions";
 import { formBoolean, formText, productSchema, categorySchema, tenantSettingsSchema, slugify } from "@/lib/validation";
 import { parsePriceInput } from "@/lib/input-formatting";
@@ -16,6 +16,9 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
   const id = idValue ? uuidSchema.safeParse(idValue) : null;
   if (id && !id.success) return { error: "Produto inválido." };
 
+  let detailSections: unknown;
+  try { detailSections = JSON.parse(formText(formData, "detail_sections")); }
+  catch { return { error: "As seções de informações adicionais estão inválidas." }; }
   const parsed = productSchema.safeParse({
     name: formText(formData, "name"),
     description: formText(formData, "description"),
@@ -27,6 +30,7 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
     stock_quantity: formText(formData, "stock_quantity") === "" ? null : Number(formText(formData, "stock_quantity")),
     featured: formBoolean(formData.get("featured")),
     highlights: formText(formData, "highlights").split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
+    detail_sections: detailSections,
   });
   if (!parsed.success) return { error: firstIssue(parsed.error.issues) };
 
@@ -50,14 +54,16 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
       if (!Array.isArray(parsedImages) || !parsedImages.every((url) => typeof url === "string")) {
         return { error: "A lista de fotos do produto está inválida." };
       }
-      retainedImageUrls = parsedImages.slice(0, 8);
+      if (parsedImages.length > 8) return { error: "Um produto pode ter no máximo 8 fotos." };
+      retainedImageUrls = parsedImages;
       imageListWasSubmitted = true;
     }
   } catch { return { error: "A lista de fotos do produto está inválida." }; }
   if (!imageListWasSubmitted && current.data) retainedImageUrls = current.data.image_urls?.length ? current.data.image_urls : current.data.image_url ? [current.data.image_url] : [];
-  const uploaded = await uploadTenantAssets(supabase, formData.getAll("images"), tenant.id, "products", Math.max(0, 8 - retainedImageUrls.length));
-  if (uploaded.error) return { error: uploaded.error };
-  const imageUrls = [...retainedImageUrls, ...uploaded.urls];
+  if (!retainedImageUrls.every((url) => isTenantAssetUrl(url, tenant.id, "products"))) {
+    return { error: "Uma das fotos não pertence ao armazenamento desta loja. Selecione as imagens novamente." };
+  }
+  const imageUrls = retainedImageUrls;
   const values = {
     tenant_id: tenant.id,
     category_id: parsed.data.category_id,
@@ -72,6 +78,7 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
     stock_quantity: parsed.data.stock_quantity,
     featured: parsed.data.featured,
     highlights: parsed.data.highlights,
+    detail_sections: parsed.data.detail_sections,
     active: parsed.data.active,
   };
 
@@ -79,7 +86,6 @@ export async function saveProductAction(_state: ActionState, formData: FormData)
     ? await supabase.from("products").update(values).eq("tenant_id", tenant.id).eq("id", id.data)
     : await supabase.from("products").insert(values);
   if (error) {
-    if (uploaded.paths.length) await supabase.storage.from("store-assets").remove(uploaded.paths);
     return { error: "Não foi possível salvar o produto. Confira a categoria e tente novamente." };
   }
 
@@ -167,41 +173,23 @@ export async function saveSettingsAction(_state: ActionState, formData: FormData
     whatsapp_number: rawWhatsApp,
   });
   if (!parsed.success) return { error: firstIssue(parsed.error.issues) };
-
-  const uploadedLogo = await uploadTenantAsset(supabase, formData.get("logo"), tenant.id, "logo");
-  if (uploadedLogo.error) return { error: uploadedLogo.error };
-  const bannerFiles = formData.getAll("banner_images").filter((file) => file instanceof File && file.size > 0);
-  const maxNewBanners = 8 - parsed.data.storefront_config.hero.image_urls.length;
-  if (bannerFiles.length > maxNewBanners) {
-    if (uploadedLogo.path) await supabase.storage.from("store-assets").remove([uploadedLogo.path]);
-    return { error: `Mantenha no máximo 8 imagens no banner. Você já tem ${parsed.data.storefront_config.hero.image_urls.length}.` };
-  }
-  const uploadedBanners = await uploadTenantAssets(supabase, bannerFiles, tenant.id, "banners", maxNewBanners);
-  if (uploadedBanners.error) {
-    if (uploadedLogo.path) await supabase.storage.from("store-assets").remove([uploadedLogo.path]);
-    return { error: uploadedBanners.error };
-  }
-  const uploadedAbout = await uploadTenantAsset(supabase, formData.get("about_image"), tenant.id, "about");
-  if (uploadedAbout.error) {
-    const paths = [...uploadedBanners.paths, ...(uploadedLogo.path ? [uploadedLogo.path] : [])];
-    if (paths.length) await supabase.storage.from("store-assets").remove(paths);
-    return { error: uploadedAbout.error };
-  }
+  const logoUrl = formText(formData, "logo_url").trim() || null;
   const storefrontConfig = parsed.data.storefront_config;
-  storefrontConfig.hero.image_urls = [...storefrontConfig.hero.image_urls, ...uploadedBanners.urls].slice(0, 8);
-  if (uploadedAbout.url) storefrontConfig.sections.about.image_url = uploadedAbout.url;
+  if (logoUrl && !isTenantAssetUrl(logoUrl, tenant.id, "logo")) return { error: "A logo informada não pertence ao armazenamento desta loja." };
+  if (!storefrontConfig.hero.image_urls.every((url) => isTenantAssetUrl(url, tenant.id, "banners"))) {
+    return { error: "Uma das imagens do banner não pertence ao armazenamento desta loja." };
+  }
+  if (storefrontConfig.sections.about.image_url && !isTenantAssetUrl(storefrontConfig.sections.about.image_url, tenant.id, "about")) {
+    return { error: "A imagem da seção Sobre não pertence ao armazenamento desta loja." };
+  }
   const { error } = await supabase.from("tenants").update({
     name: parsed.data.name,
     storefront_template: parsed.data.storefront_template,
     storefront_config: storefrontConfig,
     whatsapp_number: parsed.data.whatsapp_number,
-    ...(uploadedLogo.url ? { logo_url: uploadedLogo.url } : {}),
+    logo_url: logoUrl,
   }).eq("id", tenant.id);
-  if (error) {
-    const paths = [...uploadedBanners.paths, ...(uploadedLogo.path ? [uploadedLogo.path] : []), ...(uploadedAbout.path ? [uploadedAbout.path] : [])];
-    if (paths.length) await supabase.storage.from("store-assets").remove(paths);
-    return { error: "Não foi possível salvar as configurações." };
-  }
+  if (error) return { error: "Não foi possível salvar as configurações." };
 
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard");
