@@ -50,6 +50,10 @@ test("custom domains must be bare valid hostnames", () => {
     "menu..example.com",
     "menu.example-.com",
     "menu.example.com.",
+    "localhost",
+    "127.0.0.1",
+    "menu.123",
+    "shop.c",
   ]) {
     assert.throws(() =>
       buildPublicStoreUrl({ slug: "burger-test", domain }, "https://void.example"),

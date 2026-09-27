@@ -4,7 +4,7 @@ export type PublicStoreIdentity = {
 };
 
 const STORE_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const HOSTNAME_LABEL_PATTERN = /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+const CUSTOM_DOMAIN_PATTERN = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
 function assertValidSlug(slug: string): void {
   if (typeof slug !== "string" || !STORE_SLUG_PATTERN.test(slug)) {
@@ -13,17 +13,7 @@ function assertValidSlug(slug: string): void {
 }
 
 function normalizeDomain(domain: string): string {
-  if (
-    typeof domain !== "string" ||
-    domain.length === 0 ||
-    domain.length > 253 ||
-    domain.endsWith(".")
-  ) {
-    throw new TypeError("Custom domain must be a bare hostname.");
-  }
-
-  const labels = domain.split(".");
-  if (labels.some((label) => label.length > 63 || !HOSTNAME_LABEL_PATTERN.test(label))) {
+  if (typeof domain !== "string" || !CUSTOM_DOMAIN_PATTERN.test(domain.toLowerCase())) {
     throw new TypeError("Custom domain must be a valid hostname without a scheme, port, or path.");
   }
 
