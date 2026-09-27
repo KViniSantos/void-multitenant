@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { StorefrontBrand } from "@/lib/database.types";
+import { shouldShowGallery } from "@/lib/storefront-config";
 
 export function StorefrontHeader({ store, basePath }: { store: StorefrontBrand; basePath: string }) {
   const { navigation, sections } = store.storefront_config;
@@ -10,6 +11,7 @@ export function StorefrontHeader({ store, basePath }: { store: StorefrontBrand; 
     ...(navigation.show_category_links && sections.categories.enabled ? [{ id: "categories", label: store.tenant_type === "retail" ? "Categorias" : catalogLabel, anchor: store.tenant_type === "retail" ? "#categorias" : "#catalogo" }] : []),
     ...(navigation.show_featured_link && sections.featured.enabled ? [{ id: "featured", label: store.tenant_type === "services" ? "Em destaque" : "Destaques", anchor: "#destaques" }] : []),
     ...(navigation.show_about_link && sections.about.enabled ? [{ id: "about", label: "Sobre", anchor: "#sobre" }] : []),
+    ...(navigation.show_gallery_link && shouldShowGallery(store.tenant_type, sections.gallery) ? [{ id: "gallery", label: "Galeria", anchor: "#galeria" }] : []),
     ...(navigation.show_contact_link && sections.contact.enabled ? [{ id: "contact", label: "Contato", anchor: "#contato" }] : []),
   ];
   return <header className="sf-header">

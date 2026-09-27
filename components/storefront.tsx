@@ -9,6 +9,7 @@ import { HeroCarousel } from "@/components/storefront-carousel";
 import { StorefrontHeader } from "@/components/storefront-header";
 import { SocialIcon, WhatsAppMark } from "@/components/storefront-icons";
 import { formatAvailabilityLabel, serviceWhatsAppHref } from "@/lib/verticals";
+import { shouldShowGallery } from "@/lib/storefront-config";
 
 type FilterState = { page: number; categoryId: string | null; availability: string | null; totalPages: number };
 type Props = { store: PublicStorefront; filters?: FilterState; basePath?: string };
@@ -105,6 +106,11 @@ function Pagination({ filters, basePath }: { filters: FilterState; basePath: str
 
 function SectionContent({ id, store, config, filters, basePath }: { id: keyof StorefrontConfig["sections"]; store: PublicStorefront; config: StorefrontConfig; filters: FilterState; basePath: string }): ReactNode {
   const settings = config.sections[id];
+  if (id === "gallery") {
+    const gallery = config.sections.gallery;
+    if (!shouldShowGallery(store.tenant_type, gallery)) return null;
+    return <section className="sf-section sf-gallery-section" id="galeria"><div className="sf-section-heading"><span className="sf-eyebrow">Conheça nosso espaço</span><h2>{gallery.title}</h2></div><div className="sf-gallery-grid">{gallery.image_urls.map((imageUrl, index) => <div className="sf-gallery-item" key={imageUrl}><Image src={imageUrl} alt={`Imagem ${index + 1} da galeria ${gallery.title} de ${store.name}`} fill sizes="(max-width: 680px) 50vw, (max-width: 1000px) 33vw, (max-width: 1320px) 25vw, 292px" /></div>)}</div></section>;
+  }
   if (!settings.enabled) return null;
   if (id === "categories") return <section className="sf-section sf-categories-section" id="categorias"><div className="sf-section-heading"><span className="sf-eyebrow">{store.tenant_type === "food" ? "Encontre seu favorito" : store.tenant_type === "services" ? "Áreas de atendimento" : "Explore por assunto"}</span><h2>{settings.title}</h2></div><div className="sf-category-grid">{store.categories.map((category) => <Link key={category.id} href={catalogHref(basePath, { ...filters, page: 1, categoryId: category.id })}>{category.name}<span>→</span></Link>)}</div></section>;
   if (id === "featured") { const featured = config.sections.featured; return <section className={`sf-section sf-featured-section featured-${featured.layout}`} id="destaques"><div className="sf-section-heading"><span className="sf-eyebrow">Seleção da loja</span><h2>{featured.title}</h2></div>{store.featured_products.length ? <div className="sf-product-grid" style={{ "--catalog-columns": Math.min(config.sections.catalog.columns, 4) } as CSSProperties}>{store.featured_products.map((product) => <ProductCard key={product.id} store={store} product={product} template={store.storefront_template} basePath={basePath} />)}</div> : <p className="sf-muted">Os produtos em destaque aparecerão aqui.</p>}</section>; }
